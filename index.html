@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GENXCHOICE QUICK LOAN — Loan Application</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B1F3A">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GENX Loan Form">
+<style>
+  :root{
+    --navy:#0B1F3A;
+    --navy-deep:#071730;
+    --gold:#C9A227;
+    --gold-soft:#E6C866;
+    --paper:#F7F5F0;
+    --ink:#1B2430;
+    --muted:#6b7280;
+    --line:#dcd6c8;
+    --danger:#B3261E;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    font-family:'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+    color:var(--ink);
+    padding-bottom:60px;
+  }
+  .topband{
+    height:10px;
+    background:linear-gradient(90deg, var(--navy) 0%, var(--navy) 60%, var(--gold) 100%);
+  }
+  header.brand{
+    background:var(--navy);
+    color:#fff;
+    padding:32px 20px 40px;
+    text-align:center;
+    position:relative;
+  }
+  .photo-box{
+    position:absolute; top:16px; right:16px;
+    width:80px;height:96px;
+    background:rgba(255,255,255,0.08);
+    border:2px solid var(--gold);
+    border-radius:6px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    overflow:hidden;cursor:pointer;text-align:center;
+  }
+  .photo-box.invalid{
+    border-color:var(--danger);
+    box-shadow:0 0 0 3px rgba(220,53,69,0.25);
+  }
+  .photo-box img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-box .ph-placeholder{font-size:9px;color:var(--gold-soft);line-height:1.3;padding:4px;}
+  .photo-required-label{
+    margin:2px 0 0;
+    font-size:.72rem;
+    color:var(--gold-soft);
+    font-weight:600;
+    letter-spacing:.3px;
+  }
+  .photo-required-label .req{color:var(--danger); margin-left:2px;}
+  .photo-error-msg{
+    display:none;
+    font-size:.68rem;
+    color:#ff8a8a;
+    margin-top:4px;
+    font-weight:600;
+  }
+  .photo-error-msg.show{display:block;}
+  .photo-actions{
+    position:absolute; top:116px; right:16px; width:80px;
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .photo-actions button{
+    font-size:.62rem;background:transparent;border:1px solid var(--gold-soft);color:var(--gold-soft);
+    padding:3px 4px;border-radius:10px;cursor:pointer;font-family:inherit;
+  }
+  @media (max-width:560px){
+    .photo-box{position:static;margin:14px auto 4px;}
+    .photo-actions{position:static;flex-direction:row;justify-content:center;width:auto;margin-bottom:4px;}
+  }
+  @media print{
+    .photo-actions{display:none !important;}
+    .photo-required-label, .photo-error-msg{display:none !important;}
+  }
+  header.brand .mark-badge{
+    width:76px;height:76px;
+    background:var(--paper);
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0 auto 10px;
+    border:2px solid var(--gold);
+  }
+  header.brand .mark-logo{
+    height:46px;
+    width:auto;
+    display:block;
+  }
+  header.brand h1{
+    margin:6px 0 4px;
+    font-size:1.5rem;
+    letter-spacing:.5px;
+  }
+  header.brand p.tag{
+    margin:0;
+    color:var(--gold-soft);
+    font-size:.9rem;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+  }
+  .wrap{
+    max-width:720px;
+    margin:-26px auto 0;
+    padding:0 16px;
+  }
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-top:6px solid var(--gold);
+    border-radius:6px;
+    padding:26px 24px;
+    margin-bottom:18px;
+    box-shadow:0 1px 3px rgba(11,31,58,0.06);
+  }
+  .card.intro{
+    border-top:6px solid var(--navy);
+  }
+  .card.intro h2{margin-top:0;}
+  .card.intro p{color:var(--muted); line-height:1.5; font-size:.95rem;}
+  .section-title{
+    font-size:1.05rem;
+    font-weight:600;
+    color:var(--navy);
+    margin:0 0 4px;
+  }
+  .section-num{
+    display:inline-block;
+    color:var(--gold);
+    font-weight:700;
+    margin-right:6px;
+  }
+  .section-sub{
+    color:var(--muted);
+    font-size:.85rem;
+    margin:0 0 18px;
+  }
+  .field{
+    margin-bottom:18px;
+  }
+  label{
+    display:block;
+    font-size:.92rem;
+    font-weight:600;
+    margin-bottom:6px;
+    color:var(--ink);
+  }
+  label .req{color:var(--danger); margin-left:2px;}
+  .hint{
+    font-size:.78rem;
+    color:var(--muted);
+    margin-top:4px;
+  }
+  input[type=text], input[type=tel], input[type=number], input[type=date], input[type=email], select, textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid #c9c4b6;
+    border-radius:4px;
+    font-size:.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  input:focus, select:focus, textarea:focus{
+    outline:none;
+    border-color:var(--navy);
+    box-shadow:0 0 0 3px rgba(11,31,58,0.12);
+  }
+  textarea{resize:vertical; min-height:70px;}
+  .radio-group, .check-group{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .radio-option, .check-option{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    border:1px solid #c9c4b6;
+    padding:8px 14px;
+    border-radius:20px;
+    font-size:.88rem;
+    cursor:pointer;
+    background:#fff;
+  }
+  .radio-option input, .check-option input{width:auto; margin:0;}
+  .radio-option:has(input:checked), .check-option:has(input:checked){
+    border-color:var(--navy);
+    background:#eef1f6;
+    font-weight:600;
+  }
+  .two-col{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  @media (max-width:560px){
+    .two-col{grid-template-columns:1fr;}
+  }
+  .divider{
+    border:none;
+    border-top:1px dashed var(--line);
+    margin:20px 0;
+  }
+  .declaration{
+    background:#F2F0E8;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:14px 16px;
+    font-size:.85rem;
+    color:#3a3f47;
+    line-height:1.5;
+    margin-bottom:16px;
+  }
+  .sig-row{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .sig-row .field{flex:1; min-width:180px;}
+  .sign-blank{
+    height:52px;
+    border-bottom:2px solid var(--navy);
+  }
+  .sig-pad-wrap{
+    position:relative;
+    border:2px solid var(--line);
+    border-radius:6px;
+    background:#fff;
+    touch-action:none;
+  }
+  #sigPad{
+    display:block;
+    width:100%;
+    height:160px;
+    touch-action:none;
+    cursor:crosshair;
+  }
+  .sig-pad-placeholder{
+    position:absolute;
+    top:50%; left:0; right:0;
+    transform:translateY(-50%);
+    text-align:center;
+    color:var(--muted);
+    font-size:.85rem;
+    pointer-events:none;
+  }
+  .sig-pad-actions{
+    margin-top:6px;
+    text-align:right;
+  }
+  .sig-pad-actions button{
+    font-size:.8rem;
+    background:transparent;
+    border:1px solid var(--navy);
+    color:var(--navy);
+    padding:5px 12px;
+    border-radius:14px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  button.submit-btn{
+    width:100%;
+    padding:14px;
+    background:var(--navy);
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    font-size:1rem;
+    font-weight:600;
+    letter-spacing:.3px;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  button.submit-btn:hover{background:var(--navy-deep);}
+  .error-msg{
+    color:var(--danger);
+    font-size:.8rem;
+    margin-top:4px;
+    display:none;
+  }
+  .field.invalid input, .field.invalid select, .field.invalid textarea{
+    border-color:var(--danger);
+  }
+  .field.invalid .error-msg{display:block;}
+  footer.note{
+    text-align:center;
+    color:var(--muted);
+    font-size:.78rem;
+    margin-top:10px;
+    padding:0 20px;
+  }
+
+  /* Review / success screen */
+  #reviewScreen{display:none;}
+  .review-card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:0;
+    overflow:hidden;
+  }
+  .review-header{
+    background:var(--navy);
+    color:#fff;
+    padding:22px 24px;
+    text-align:center;
+  }
+  .review-header .check{
+    width:44px;height:44px;
+    border-radius:50%;
+    background:var(--gold);
+    color:var(--navy);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 10px;
+    font-size:1.4rem;
+    font-weight:700;
+  }
+  .review-body{padding:22px 24px;}
+  .review-row{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:9px 0;
+    border-bottom:1px solid #eee;
+    font-size:.9rem;
+  }
+  .review-row .k{color:var(--muted);}
+  .review-row .v{font-weight:600; text-align:right;}
+  .review-declaration{
+    font-size:.85rem;
+    line-height:1.6;
+    color:var(--ink);
+    text-align:justify;
+    margin:6px 0 12px;
+  }
+  .review-declaration-check{
+    font-size:.88rem;
+    font-weight:600;
+    color:var(--navy);
+    margin-bottom:8px;
+  }
+  .review-section-label{
+    color:var(--navy);
+    font-weight:700;
+    font-size:.85rem;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    margin:18px 0 4px;
+  }
+  .review-actions{
+    display:flex;
+    gap:10px;
+    margin-top:20px;
+  }
+  .review-actions button{
+    flex:1;
+    padding:12px;
+    border-radius:4px;
+    font-weight:600;
+    cursor:pointer;
+    font-size:.9rem;
+  }
+  #printBtn{background:var(--gold); color:var(--navy); border:none;}
+  #editBtn{background:#fff; color:var(--navy); border:1px solid var(--navy);}
+  .review-actions{flex-wrap:wrap;}
+  .review-actions button{flex:1 1 100px;}
+
+  /* Print-only letterhead, hidden on screen */
+  .print-letterhead{display:none;}
+
+  /* Print-only signature block, hidden on screen */
+  .print-signatures{display:none;}
+  /* Print-only office-use box, hidden on screen */
+  .print-office{display:none;}
+
+  @media print{
+    @page{ margin: 16mm 14mm; }
+
+    *{
+      -webkit-print-color-adjust:exact !important;
+      print-color-adjust:exact !important;
+      color-adjust:exact !important;
+    }
+
+    header.brand, .review-header, .review-actions, footer.note,
+    .photo-actions, #editBtn, #printBtn { display:none !important; }
+
+    body{background:#fff; padding-bottom:0;}
+    .wrap{margin-top:0; max-width:100%;}
+
+    .review-card{border:none; border-radius:0; box-shadow:none;}
+    .review-body{padding:0;}
+
+    .print-letterhead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:2px solid var(--navy);
+      padding-bottom:10px;
+      margin-bottom:18px;
+    }
+    .print-letterhead .letterhead-brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .print-letterhead .letterhead-logo{
+      height:38px;
+      width:auto;
+      display:block;
+    }
+    .print-letterhead .brandname{
+      font-size:1.15rem;
+      font-weight:700;
+      color:var(--navy);
+      letter-spacing:.3px;
+    }
+    .print-letterhead .brandname .tagline{
+      display:block;
+      font-size:.7rem;
+      font-weight:400;
+      color:var(--muted);
+      letter-spacing:1px;
+      text-transform:uppercase;
+      margin-top:2px;
+    }
+    .print-letterhead .doctitle{
+      text-align:right;
+      font-size:.78rem;
+      color:var(--muted);
+    }
+    .print-letterhead .doctitle strong{
+      display:block;
+      color:var(--ink);
+      font-size:.85rem;
+    }
+    .print-letterhead .doctitle span{
+      display:block;
+    }
+
+    .review-section-label{
+      border-bottom:1px solid var(--line);
+      padding-bottom:4px;
+      break-after:avoid;
+      page-break-after:avoid;
+    }
+    .review-row{
+      break-inside:avoid;
+      page-break-inside:avoid;
+      font-size:.85rem;
+    }
+    .review-declaration{
+      font-size:.78rem;
+      line-height:1.55;
+      color:var(--ink);
+      text-align:justify;
+      break-inside:avoid;
+      page-break-inside:avoid;
+      margin:4px 0 10px;
+    }
+    .review-declaration-check{
+      font-size:.8rem;
+      font-weight:600;
+      color:var(--navy);
+      break-inside:avoid;
+      page-break-inside:avoid;
+      margin-bottom:6px;
+    }
+
+    .print-office{
+      display:block;
+      margin-top:22px;
+      border:1px solid var(--line);
+      background:#FAF9F5;
+      padding:14px 16px;
+    }
+    .print-office .office-title{
+      font-weight:700;
+      color:var(--navy);
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      margin:0 0 12px;
+      break-after:avoid;
+      page-break-after:avoid;
+    }
+    .print-office .office-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px 24px;
+    }
+    .print-office .office-field{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      font-size:.75rem;
+      color:var(--muted);
+      width:calc(50% - 12px);
+      box-sizing:border-box;
+    }
+    .print-office .office-label{white-space:nowrap;}
+    .print-office .office-line{
+      display:block;
+      width:100%;
+      border-bottom:1px solid var(--ink);
+      height:16px;
+      box-sizing:border-box;
+    }
+    .print-office .office-line-value{
+      font-weight:600;
+      color:var(--ink);
+      font-size:.78rem;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .print-office .office-signature-img{
+      max-height:34px;
+      max-width:100%;
+      width:auto;
+      object-fit:contain;
+      display:block;
+      border-bottom:1px solid var(--ink);
+      padding-bottom:2px;
+    }
+    .print-office .office-note{
+      margin:12px 0 0;
+      font-size:.66rem;
+      color:var(--muted);
+      font-style:italic;
+      line-height:1.4;
+    }
+
+    .print-signatures{
+      display:block;
+      margin-top:26px;
+    }
+    .print-signatures .sig-title{
+      font-weight:700;
+      color:var(--navy);
+      font-size:.85rem;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      margin-bottom:14px;
+      border-bottom:1px solid var(--line);
+      padding-bottom:4px;
+      break-after:avoid;
+      page-break-after:avoid;
+    }
+    .print-signatures .sig-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:30px;
+    }
+    .print-signatures .sig-block{
+      width:calc(50% - 15px);
+      box-sizing:border-box;
+      break-inside:avoid;
+      page-break-inside:avoid;
+    }
+    .print-signatures .sig-block p.role{
+      font-size:.72rem;
+      font-weight:700;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      margin:0 0 10px;
+      line-height:1.35;
+      min-height:2.7em;
+      display:flex;
+      align-items:flex-end;
+    }
+    .print-signatures .sig-image{
+      display:block;
+      max-height:60px;
+      max-width:100%;
+      margin-bottom:2px;
+    }
+    .print-signatures .sig-line{
+      border-bottom:1px solid var(--ink);
+      height:1px;
+      margin-bottom:6px;
+    }
+    .print-signatures .sig-caption{
+      display:flex;
+      justify-content:space-between;
+      font-size:.72rem;
+      color:var(--muted);
+    }
+
+    .print-footer{
+      display:block;
+      margin-top:24px;
+      padding-top:8px;
+      border-top:1px solid var(--line);
+      font-size:.68rem;
+      color:var(--muted);
+      text-align:center;
+    }
+  }
+  .print-footer{display:none;}
+</style>
+</head>
+<body>
+
+<div class="topband"></div>
+<header class="brand">
+  <div class="mark-badge"><img class="mark-logo" src="logo.png" alt="GENXCHOICE logo"></div>
+  <h1>GENXCHOICE QUICK LOAN</h1>
+  <p class="tag">Loan Application Form</p>
+
+  <p class="photo-required-label">Applicant Photo<span class="req">*</span></p>
+  <div class="photo-box" id="photoBox" onclick="document.getElementById('photoInput').click()">
+    <div class="ph-placeholder" id="photoPlaceholder">📷<br>Add Photo</div>
+    <img id="photoPreview" style="display:none;">
+  </div>
+  <div class="photo-error-msg" id="photoErrorMsg">Please take a photo or upload one — this is required.</div>
+  <div class="photo-actions">
+    <button type="button" onclick="event.stopPropagation();document.getElementById('photoInput').click()">Upload/Camera</button>
+    <button type="button" onclick="event.stopPropagation();clearPhoto()">Clear</button>
+  </div>
+  <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(event)">
+</header>
+
+<div class="wrap">
+
+  <div class="card intro">
+    <h2>Before you apply</h2>
+    <p>Please complete every section accurately. Information provided here is used solely to assess your loan request and will be kept confidential. Fields marked <span style="color:#B3261E;">*</span> are required.</p>
+  </div>
+
+  <form id="loanForm">
+
+    <!-- SECTION 1 -->
+    <div class="card">
+      <p class="section-title"><span class="section-num">1.</span>Personal Information</p>
+      <p class="section-sub">Tell us who you are</p>
+
+      <div class="field" data-required>
+        <label>First Name<span class="req">*</span></label>
+        <input type="text" name="firstName" placeholder="e.g. Kwame">
+        <div class="error-msg">Please enter your first name.</div>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Middle Name</label>
+          <input type="text" name="middleName" placeholder="e.g. Mensah">
+        </div>
+        <div class="field" data-required>
+          <label>Surname<span class="req">*</span></label>
+          <input type="text" name="surname" placeholder="e.g. Boateng">
+          <div class="error-msg">Please enter your surname.</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="field" data-required>
+          <label>Date of Birth<span class="req">*</span></label>
+          <input type="date" name="dob">
+          <div class="error-msg">Please select your date of birth.</div>
+        </div>
+        <div class="field" data-required>
+          <label>Gender<span class="req">*</span></label>
+          <select name="gender">
+            <option value="">Select</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Prefer not to say</option>
+          </select>
+          <div class="error-msg">Please select an option.</div>
+        </div>
+      </div>
+
+      <div class="field" data-required>
+        <label>National ID / Voter ID Number<span class="req">*</span></label>
+        <input type="text" name="nationalId" placeholder="e.g. GHA-XXXXXXXXX-X">
+        <div class="error-msg">Please enter your ID number.</div>
+      </div>
+
+      <div class="field" data-required>
+        <label>Phone Number<span class="req">*</span></label>
+        <input type="tel" name="phone" placeholder="0XX XXX XXXX">
+        <div class="error-msg">Please enter a valid phone number.</div>
+      </div>
+
+      <div class="field" data-required>
+        <label>Residential Address<span class="req">*</span></label>
+        <textarea name="address" placeholder="House number, street, town/city"></textarea>
+        <div class="error-msg">Please enter your address.</div>
+      </div>
+    </div>
+
+    <!-- SECTION 2 -->
+    <div class="card">
+      <p class="section-title"><span class="section-num">2.</span>Employment & Income</p>
+      <p class="section-sub">This helps us assess your ability to repay</p>
+
+      <div class="field" data-required>
+        <label>Employment Status<span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="radio-option"><input type="radio" name="employmentStatus" value="Employed"> Employed</label>
+          <label class="radio-option"><input type="radio" name="employmentStatus" value="Self-employed"> Self-employed</label>
+          <label class="radio-option"><input type="radio" name="employmentStatus" value="Business owner"> Business owner</label>
+          <label class="radio-option"><input type="radio" name="employmentStatus" value="Unemployed"> Unemployed</label>
+        </div>
+        <div class="error-msg">Please select your employment status.</div>
+      </div>
+
+      <div class="field">
+        <label>Employer / Business Name</label>
+        <input type="text" name="employerName" placeholder="e.g. name of employer or your own business">
+      </div>
+
+      <div class="field" data-required>
+        <label>Monthly Income (GHS)<span class="req">*</span></label>
+        <input type="number" name="monthlyIncome" placeholder="e.g. 1500" min="0">
+        <div class="error-msg">Please enter your monthly income.</div>
+      </div>
+
+      <div class="field">
+        <label>Do you have any existing loans elsewhere?</label>
+        <div class="radio-group">
+          <label class="radio-option"><input type="radio" name="existingLoans" value="No"> No</label>
+          <label class="radio-option"><input type="radio" name="existingLoans" value="Yes"> Yes</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3 -->
+    <div class="card">
+      <p class="section-title"><span class="section-num">3.</span>Loan Requested</p>
+      <p class="section-sub">Details of the loan you're applying for</p>
+
+      <div class="two-col">
+        <div class="field" data-required>
+          <label>Loan Amount Requested (GHS)<span class="req">*</span></label>
+          <input type="number" name="loanAmount" min="0" placeholder="e.g. 2000">
+          <div class="error-msg">Please enter the amount requested.</div>
+        </div>
+        <div class="field" data-required>
+          <label>Repayment Period<span class="req">*</span></label>
+          <select name="repaymentPeriod">
+            <option value="">Select</option>
+            <option>1 month</option>
+            <option>2 months</option>
+            <option>3 months</option>
+            <option>4 months</option>
+            <option>5 months</option>
+            <option>6 months</option>
+          </select>
+          <div class="error-msg">Please select a repayment period.</div>
+        </div>
+      </div>
+
+      <div class="field" data-required>
+        <label>Total Repayment Amount (GHS)<span class="req">*</span></label>
+        <input type="number" name="repaymentAmount" min="0" placeholder="Auto-calculated" readonly style="background:#f2f0e8;">
+        <div class="hint">Auto-calculated from loan amount and repayment period. Loan amount plus interest — the full amount to be repaid by the due date.</div>
+        <div class="error-msg">Please enter the total repayment amount.</div>
+      </div>
+
+      <div class="field" data-required>
+        <label>Purpose of Loan<span class="req">*</span></label>
+        <textarea name="loanPurpose" placeholder="e.g. stock restocking, school fees, emergency medical expense"></textarea>
+        <div class="error-msg">Please state the purpose of the loan.</div>
+      </div>
+
+      <div class="field" data-required>
+        <label>Loan Disbursement Method<span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="radio-option"><input type="radio" name="disbursementMethod" value="Cash"> Cash</label>
+          <label class="radio-option"><input type="radio" name="disbursementMethod" value="Mobile Money"> Mobile Money</label>
+          <label class="radio-option"><input type="radio" name="disbursementMethod" value="Bank Transfer"> Bank Transfer</label>
+        </div>
+        <div class="error-msg">Please select a loan disbursement method.</div>
+      </div>
+    </div>
+
+    <!-- SECTION 4 -->
+    <div class="card">
+      <p class="section-title"><span class="section-num">4.</span>Collateral / Security</p>
+      <p class="section-sub">Required to secure this loan</p>
+
+      <div class="field" data-required>
+        <label>Description of Collateral<span class="req">*</span></label>
+        <textarea name="collateralDescription" placeholder="e.g. phone, TV, motorbike, land document — include estimated value"></textarea>
+        <div class="error-msg">Please describe the collateral you are offering.</div>
+      </div>
+
+      <div class="field" data-required>
+        <label>Grace Period Before Collateral Sale (days)<span class="req">*</span></label>
+        <input type="number" name="gracePeriodDays" min="0" value="7" style="max-width:120px;">
+        <div class="hint">Days after the repayment due date before GENXCHOICE QUICK LOAN may sell the collateral to recover the loan, if it remains unpaid.</div>
+        <div class="error-msg">Please enter the grace period in days.</div>
+      </div>
+
+      <div class="field" data-required>
+        <label><input type="checkbox" name="ownershipConfirm" style="width:auto; margin-right:8px;">I confirm this collateral belongs to me and is not stolen, pledged, or owned by someone else<span class="req">*</span></label>
+        <div class="error-msg">You must confirm ownership of the collateral.</div>
+      </div>
+    </div>
+
+    <!-- SECTION 5: Declaration -->
+    <div class="card">
+      <p class="section-title"><span class="section-num">5.</span>Declaration</p>
+      <div class="declaration">
+        I confirm that the information provided in this application is true and accurate to the best of my knowledge, and that the collateral described above is rightfully mine and not stolen or under any dispute. I understand that GENXCHOICE QUICK LOAN will assess this application and that providing false information may result in rejection of the loan or other action. I agree to repay the loan amount, together with any applicable interest, according to the terms agreed upon at disbursement. I understand that if I fail to repay as agreed, the collateral I have provided may be sold by GENXCHOICE QUICK LOAN to recover the outstanding amount. If I default, GENXCHOICE QUICK LOAN may sell the collateral at a price sufficient for prompt recovery. From the sale price, GENXCHOICE QUICK LOAN will first deduct a collateral recovery fee of 15% of the sale price, then apply the remainder to my outstanding balance (after deducting any payments already made). Any remaining surplus will be returned to me.
+      </div>
+
+      <div class="field" data-required>
+        <label><input type="checkbox" name="agree" style="width:auto; margin-right:8px;">I have read and agree to the declaration above, including the sale of my collateral if I default<span class="req">*</span></label>
+        <div class="error-msg">You must agree to the declaration to submit.</div>
+      </div>
+
+      <p class="section-title" style="font-size:.95rem;margin-top:22px;">Borrower</p>
+
+      <div class="field" data-required>
+        <label>How will you sign?<span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="radio-option"><input type="radio" name="sigMethod" value="digital" checked> Sign now on this phone/device</label>
+          <label class="radio-option"><input type="radio" name="sigMethod" value="paper"> I'll sign the printed copy by hand</label>
+        </div>
+      </div>
+
+      <div class="field" id="digitalSigField">
+        <label>Draw your signature below<span class="req">*</span></label>
+        <div class="sig-pad-wrap">
+          <canvas id="sigPad"></canvas>
+          <div class="sig-pad-placeholder" id="sigPadPlaceholder">Sign here with your finger or mouse</div>
+        </div>
+        <div class="sig-pad-actions">
+          <button type="button" id="clearSigBtn">Clear Signature</button>
+        </div>
+        <div class="error-msg" id="sigPadError">Please draw your signature, or choose "I'll sign the printed copy by hand" instead.</div>
+      </div>
+
+      <div class="sig-row">
+        <div class="field" data-required>
+          <label>Date<span class="req">*</span></label>
+          <input type="date" name="signDate">
+          <div class="error-msg">Please select a date.</div>
+        </div>
+      </div>
+
+      <p class="section-title" style="font-size:.95rem;margin-top:10px;">Lender — GENXCHOICE QUICK LOAN</p>
+      <div class="sig-row">
+        <div class="field">
+          <label>Signature (sign by hand after printing)</label>
+          <div class="sign-blank"></div>
+        </div>
+        <div class="field" data-required>
+          <label>Date<span class="req">*</span></label>
+          <input type="date" name="lenderSignDate">
+          <div class="error-msg">Please select a date.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-top-color:var(--navy);">
+      <button type="submit" class="submit-btn">Submit Application</button>
+    </div>
+  </form>
+
+  <!-- REVIEW SCREEN -->
+  <div id="reviewScreen">
+    <div class="review-card">
+      <div class="review-header">
+        <div class="check">✓</div>
+        <div style="font-weight:600; font-size:1.1rem;">Application Ready</div>
+        <div style="font-size:.85rem; color:var(--gold-soft); margin-top:4px;">Review your details below before handing this in</div>
+      </div>
+      <div class="print-letterhead">
+        <div class="letterhead-brand">
+          <img class="letterhead-logo" src="logo.png" alt="GENXCHOICE logo">
+          <div class="brandname">GENXCHOICE QUICK LOAN<span class="tagline">Loan Application Record</span></div>
+        </div>
+        <div class="doctitle"><strong>Loan Application</strong><span id="printDate"></span><span id="printRef"></span></div>
+      </div>
+
+      <div class="review-body" id="reviewBody"></div>
+
+      <div class="print-office" id="printOffice">
+        <p class="office-title">For Office Use Only</p>
+        <div class="office-grid">
+          <div class="office-field"><span class="office-label">Loan ID</span><span class="office-line office-line-value" id="officeLoanId"></span></div>
+          <div class="office-field"><span class="office-label">Approved Amount (GHS)</span><span class="office-line office-line-value" id="officeApprovedAmount"></span></div>
+          <div class="office-field"><span class="office-label">Disbursement Date</span><span class="office-line office-line-value" id="officeDisbDate"></span></div>
+          <div class="office-field"><span class="office-label">Due Date</span><span class="office-line office-line-value" id="officeDueDate"></span></div>
+          <div class="office-field"><span class="office-label">Officer Name</span><span class="office-line office-line-value">Annor Sampson</span></div>
+          <div class="office-field"><span class="office-label">Officer Signature</span><img class="office-signature-img" src="officer-signature.png" alt="Officer signature"></div>
+        </div>
+        <p class="office-note">Loan ID is pre-filled with the reference number above. Approved Amount is pre-filled with the amount requested. Disbursement Date and Due Date are pre-filled assuming disbursement on the borrower's signing date. Cross out and write your own values by hand if any of these differ.</p>
+      </div>
+
+      <div class="print-signatures" id="printSignatures">
+        <p class="sig-title">Signatures</p>
+        <div class="sig-grid">
+          <div class="sig-block">
+            <p class="role">Borrower</p>
+            <img id="borrowerSigImg" class="sig-image" style="display:none;" alt="Borrower signature">
+            <div class="sig-line" id="borrowerSigLine"></div>
+            <div class="sig-caption"><span>Signature</span><span id="sigBorrowerDate"></span></div>
+          </div>
+          <div class="sig-block">
+            <p class="role">Lender — GENXCHOICE QUICK LOAN</p>
+            <img class="sig-image" src="officer-signature.png" alt="Lender signature">
+            <div class="sig-line" style="border-bottom:none;"></div>
+            <div class="sig-caption"><span>Signature</span><span id="sigLenderDate"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="print-footer">GENXCHOICE QUICK LOAN · This copy is confidential and intended solely for loan assessment purposes.</div>
+
+      <div class="review-actions">
+        <button id="editBtn" type="button">Edit</button>
+        <button id="printBtn" type="button">Print / Save as PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">GENXCHOICE QUICK LOAN · This form does not send data anywhere — it stays on this device until printed or saved.</footer>
+</div>
+
+<script>
+const form = document.getElementById('loanForm');
+const reviewScreen = document.getElementById('reviewScreen');
+const reviewBody = document.getElementById('reviewBody');
+
+function fieldsIn(card){
+  return Array.from(card.querySelectorAll('.field[data-required]'));
+}
+
+function validateField(field){
+  const input = field.querySelector('input, select, textarea');
+  let valid = true;
+  if(!input) return true;
+
+  if(input.type === 'radio'){
+    const name = input.name;
+    const checked = form.querySelector(`input[name="${name}"]:checked`);
+    valid = !!checked;
+  } else if(input.type === 'checkbox'){
+    valid = input.checked;
+  } else {
+    valid = input.value.trim() !== '';
+  }
+
+  field.classList.toggle('invalid', !valid);
+  return valid;
+}
+
+form.addEventListener('submit', function(e){
+  e.preventDefault();
+  const requiredFields = document.querySelectorAll('.field[data-required]');
+  let allValid = true;
+  let firstInvalid = null;
+
+  const photoOk = validatePhoto();
+  if(!photoOk){
+    allValid = false;
+    firstInvalid = document.getElementById('photoBox');
+  }
+
+  requiredFields.forEach(field => {
+    const ok = validateField(field);
+    if(!ok){
+      allValid = false;
+      if(!firstInvalid) firstInvalid = field;
+    }
+  });
+
+  const sigOk = validateSignaturePad();
+  if(!sigOk){
+    allValid = false;
+    if(!firstInvalid) firstInvalid = document.getElementById('digitalSigField');
+  }
+
+  if(!allValid){
+    firstInvalid.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
+  buildReview();
+  form.closest('.wrap') ? null : null;
+  document.querySelectorAll('.card').forEach(c => { c.style.display='none'; });
+  form.style.display = 'none';
+  reviewScreen.style.display = 'block';
+  reviewScreen.scrollIntoView({behavior:'smooth'});
+});
+
+document.getElementById('editBtn').addEventListener('click', function(){
+  document.querySelectorAll('.card').forEach(c => c.style.display='block');
+  form.style.display='block';
+  reviewScreen.style.display='none';
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+document.getElementById('printBtn').addEventListener('click', function(){
+  window.print();
+});
+
+const REPAYMENT_RATES = {
+  '1 month': 0.20,
+  '2 months': 0.30,
+  '3 months': 0.40,
+  '4 months': 0.50,
+  '5 months': 0.60,
+  '6 months': 0.65
+};
+
+const loanAmountInput = form.querySelector('[name="loanAmount"]');
+const repaymentPeriodSelect = form.querySelector('[name="repaymentPeriod"]');
+const repaymentAmountInput = form.querySelector('[name="repaymentAmount"]');
+
+function autoCalculateRepayment(){
+  const principal = parseFloat(loanAmountInput.value);
+  const rate = REPAYMENT_RATES[repaymentPeriodSelect.value];
+
+  if(!isNaN(principal) && principal > 0 && rate !== undefined){
+    const total = principal + (principal * rate);
+    repaymentAmountInput.value = Math.round(total * 100) / 100;
+    repaymentAmountInput.closest('.field').classList.remove('invalid');
+  } else {
+    repaymentAmountInput.value = '';
+  }
+}
+
+loanAmountInput.addEventListener('input', autoCalculateRepayment);
+repaymentPeriodSelect.addEventListener('change', autoCalculateRepayment);
+
+function formatDateLong(dateStr){
+  if(!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if(isNaN(d.getTime())) return dateStr;
+  const day = d.getDate();
+  const month = d.toLocaleString('en-GB', { month: 'long' });
+  const year = d.getFullYear();
+  const suffix = (day % 10 === 1 && day !== 11) ? 'st'
+    : (day % 10 === 2 && day !== 12) ? 'nd'
+    : (day % 10 === 3 && day !== 13) ? 'rd'
+    : 'th';
+  return `${day}${suffix} ${month} ${year}`;
+}
+
+function val(name){
+  const el = form.querySelector(`[name="${name}"]`);
+  if(!el) return '';
+  if(el.type === 'radio'){
+    const checked = form.querySelector(`input[name="${name}"]:checked`);
+    return checked ? checked.value : '';
+  }
+  if(el.type === 'checkbox') return el.checked ? 'Yes' : 'No';
+  return el.value;
+}
+
+function row(label, value){
+  return `<div class="review-row"><span class="k">${label}</span><span class="v">${value || '—'}</span></div>`;
+}
+
+function sectionLabel(text){
+  return `<div class="review-section-label">${text}</div>`;
+}
+
+function declarationBlock(){
+  const declarationText = "I confirm that the information provided in this application is true and accurate to the best of my knowledge, and that the collateral described above is rightfully mine and not stolen or under any dispute. I understand that GENXCHOICE QUICK LOAN will assess this application and that providing false information may result in rejection of the loan or other action. I agree to repay the loan amount, together with any applicable interest, according to the terms agreed upon at disbursement. I understand that if I fail to repay as agreed, the collateral I have provided may be sold by GENXCHOICE QUICK LOAN to recover the outstanding amount. If I default, GENXCHOICE QUICK LOAN may sell the collateral at a price sufficient for prompt recovery. From the sale price, GENXCHOICE QUICK LOAN will first deduct a collateral recovery fee of 15% of the sale price, then apply the remainder to my outstanding balance (after deducting any payments already made). Any remaining surplus will be returned to me.";
+  const agreed = document.querySelector('[name="agree"]').checked;
+  const checkMark = agreed ? '\u2611' : '\u2610';
+  return `
+    <div class="review-declaration">${declarationText}</div>
+    <div class="review-declaration-check">${checkMark} I have read and agree to the declaration above, including the sale of my collateral if I default</div>
+  `;
+}
+
+function buildReview(){
+  let html = '';
+
+  const photoImg = document.getElementById('photoPreview');
+  if(photoImg && photoImg.style.display !== 'none' && photoImg.src){
+    html += '<div style="text-align:center;margin-bottom:16px;"><img src="'+photoImg.src+'" style="width:100px;height:120px;object-fit:cover;border:2px solid #C9A227;border-radius:6px;"></div>';
+  }
+
+  html += sectionLabel('Personal Information');
+  html += row('Full Name', [val('firstName'), val('middleName'), val('surname')].filter(Boolean).join(' '));
+  html += row('Date of Birth', formatDateLong(val('dob')));
+  html += row('Gender', val('gender'));
+  html += row('National ID', val('nationalId'));
+  html += row('Phone', val('phone'));
+  html += row('Address', val('address'));
+
+  html += sectionLabel('Employment & Income');
+  html += row('Employment Status', val('employmentStatus'));
+  html += row('Employer / Business', val('employerName'));
+  html += row('Monthly Income (GHS)', val('monthlyIncome'));
+  html += row('Existing Loans', val('existingLoans'));
+
+  html += sectionLabel('Loan Requested');
+  html += row('Amount (GHS)', val('loanAmount'));
+  html += row('Repayment Period', val('repaymentPeriod'));
+  html += row('Total Repayment Amount (GHS)', val('repaymentAmount'));
+  html += row('Purpose', val('loanPurpose'));
+  html += row('Loan Disbursement Method', val('disbursementMethod'));
+
+  html += sectionLabel('Collateral');
+  html += row('Description', val('collateralDescription'));
+  html += row('Grace Period Before Sale (days)', val('gracePeriodDays'));
+  html += row('Ownership Confirmed', val('ownershipConfirm'));
+  html += `<div class="review-declaration-check" style="margin-top:6px;">I confirm this collateral belongs to me and is not stolen, pledged, or owned by someone else.</div>`;
+
+  html += sectionLabel('Declaration');
+  html += declarationBlock();
+
+  reviewBody.innerHTML = html;
+
+  document.getElementById('sigBorrowerDate').textContent = val('signDate') ? 'Date: ' + formatDateLong(val('signDate')) : 'Date: ______________';
+  document.getElementById('sigLenderDate').textContent = val('lenderSignDate') ? 'Date: ' + formatDateLong(val('lenderSignDate')) : 'Date: ______________';
+
+  const borrowerSigImg = document.getElementById('borrowerSigImg');
+  const borrowerSigLine = document.getElementById('borrowerSigLine');
+  const sigDataUrl = getSignatureDataUrl();
+  if(sigDataUrl){
+    borrowerSigImg.src = sigDataUrl;
+    borrowerSigImg.style.display = 'block';
+    borrowerSigLine.style.borderBottom = 'none';
+  } else {
+    borrowerSigImg.style.display = 'none';
+    borrowerSigLine.style.borderBottom = '1px solid var(--ink)';
+  }
+
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  document.getElementById('printDate').textContent = 'Printed: ' + formatDateLong(todayStr);
+
+  const refCode = 'GXC-' + today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0') + '-' + String(Math.floor(1000 + Math.random()*9000));
+  document.getElementById('printRef').textContent = 'Ref: ' + refCode;
+  document.getElementById('officeLoanId').textContent = refCode;
+  document.getElementById('officeApprovedAmount').textContent = val('loanAmount') ? Number(val('loanAmount')).toLocaleString() : '';
+
+  const disbDateStr = val('signDate') || todayStr;
+  const disbDate = new Date(disbDateStr + 'T00:00:00');
+  const periodMatch = val('repaymentPeriod').match(/(\d+)/);
+  const months = periodMatch ? parseInt(periodMatch[1], 10) : null;
+
+  document.getElementById('officeDisbDate').textContent = formatDateLong(disbDateStr);
+
+  if(months !== null && !isNaN(disbDate.getTime())){
+    const dueDate = new Date(disbDate);
+    dueDate.setMonth(dueDate.getMonth() + months);
+    const dueDateStr = dueDate.getFullYear() + '-' + String(dueDate.getMonth()+1).padStart(2,'0') + '-' + String(dueDate.getDate()).padStart(2,'0');
+    document.getElementById('officeDueDate').textContent = formatDateLong(dueDateStr);
+  }
+}
+
+function loadPhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = document.getElementById('photoPreview');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    document.getElementById('photoPlaceholder').style.display = 'none';
+    document.getElementById('photoBox').classList.remove('invalid');
+    document.getElementById('photoErrorMsg').classList.remove('show');
+  };
+  reader.readAsDataURL(file);
+}
+function clearPhoto(){
+  const img = document.getElementById('photoPreview');
+  img.src = '';
+  img.style.display = 'none';
+  document.getElementById('photoPlaceholder').style.display = 'block';
+  document.getElementById('photoInput').value = '';
+}
+function isPhotoValid(){
+  const img = document.getElementById('photoPreview');
+  return !!img.src && img.style.display !== 'none';
+}
+function validatePhoto(){
+  const valid = isPhotoValid();
+  const photoBox = document.getElementById('photoBox');
+  const errorMsg = document.getElementById('photoErrorMsg');
+  photoBox.classList.toggle('invalid', !valid);
+  errorMsg.classList.toggle('show', !valid);
+  return valid;
+}
+
+/* ---------- Borrower Signature Pad ---------- */
+const sigCanvas = document.getElementById('sigPad');
+const sigCtx = sigCanvas.getContext('2d');
+let sigHasDrawn = false;
+let sigDrawing = false;
+let sigLastX = 0, sigLastY = 0;
+
+function resizeSigCanvas(){
+  const wrap = sigCanvas.parentElement;
+  const ratio = window.devicePixelRatio || 1;
+  const cssWidth = wrap.clientWidth;
+  const cssHeight = 160;
+  const prevData = sigHasDrawn ? sigCanvas.toDataURL() : null;
+  sigCanvas.width = cssWidth * ratio;
+  sigCanvas.height = cssHeight * ratio;
+  sigCanvas.style.width = cssWidth + 'px';
+  sigCanvas.style.height = cssHeight + 'px';
+  sigCtx.scale(ratio, ratio);
+  sigCtx.lineWidth = 2;
+  sigCtx.lineCap = 'round';
+  sigCtx.strokeStyle = '#0B1F3A';
+  if(prevData){
+    const img = new Image();
+    img.onload = function(){ sigCtx.drawImage(img, 0, 0, cssWidth, cssHeight); };
+    img.src = prevData;
+  }
+}
+window.addEventListener('resize', resizeSigCanvas);
+resizeSigCanvas();
+
+function sigPointerPos(e){
+  const rect = sigCanvas.getBoundingClientRect();
+  const point = e.touches ? e.touches[0] : e;
+  return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+}
+function sigStart(e){
+  e.preventDefault();
+  sigDrawing = true;
+  const p = sigPointerPos(e);
+  sigLastX = p.x; sigLastY = p.y;
+}
+function sigMove(e){
+  if(!sigDrawing) return;
+  e.preventDefault();
+  const p = sigPointerPos(e);
+  sigCtx.beginPath();
+  sigCtx.moveTo(sigLastX, sigLastY);
+  sigCtx.lineTo(p.x, p.y);
+  sigCtx.stroke();
+  sigLastX = p.x; sigLastY = p.y;
+  if(!sigHasDrawn){
+    sigHasDrawn = true;
+    document.getElementById('sigPadPlaceholder').style.display = 'none';
+  }
+}
+function sigEnd(){ sigDrawing = false; }
+
+sigCanvas.addEventListener('mousedown', sigStart);
+sigCanvas.addEventListener('mousemove', sigMove);
+window.addEventListener('mouseup', sigEnd);
+sigCanvas.addEventListener('touchstart', sigStart, {passive:false});
+sigCanvas.addEventListener('touchmove', sigMove, {passive:false});
+sigCanvas.addEventListener('touchend', sigEnd);
+
+document.getElementById('clearSigBtn').addEventListener('click', function(){
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  sigHasDrawn = false;
+  document.getElementById('sigPadPlaceholder').style.display = 'block';
+  document.getElementById('digitalSigField').classList.remove('invalid');
+});
+
+function currentSigMethod(){
+  const checked = document.querySelector('input[name="sigMethod"]:checked');
+  return checked ? checked.value : 'digital';
+}
+function updateSigMethodUI(){
+  const digitalField = document.getElementById('digitalSigField');
+  digitalField.style.display = (currentSigMethod() === 'digital') ? 'block' : 'none';
+  digitalField.classList.remove('invalid');
+}
+document.querySelectorAll('input[name="sigMethod"]').forEach(r => r.addEventListener('change', updateSigMethodUI));
+updateSigMethodUI();
+
+function validateSignaturePad(){
+  if(currentSigMethod() !== 'digital') return true;
+  const valid = sigHasDrawn;
+  document.getElementById('digitalSigField').classList.toggle('invalid', !valid);
+  return valid;
+}
+function getSignatureDataUrl(){
+  if(currentSigMethod() !== 'digital' || !sigHasDrawn) return null;
+  return sigCanvas.toDataURL('image/png');
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+
+</body>
+</html>
