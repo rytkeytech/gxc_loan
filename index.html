@@ -618,6 +618,67 @@
     }
   }
   .print-footer{display:none;}
+
+  /* Live loan summary */
+  .loan-summary{
+    background:var(--navy);
+    color:#fff;
+    border-radius:6px;
+    padding:14px 16px;
+    margin-bottom:18px;
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:10px;
+  }
+  .loan-summary .ls-item{display:flex;flex-direction:column;gap:2px;}
+  .loan-summary .ls-k{font-size:.72rem;color:var(--gold-soft);text-transform:uppercase;letter-spacing:.5px;}
+  .loan-summary .ls-v{font-size:1rem;font-weight:700;}
+  @media (max-width:420px){ .loan-summary{grid-template-columns:1fr 1fr;} }
+  .fixed-value{
+    display:inline-block;
+    padding:9px 14px;
+    background:#f2f0e8;
+    border:1px solid var(--line);
+    border-radius:4px;
+    font-weight:600;
+  }
+  .conditional{display:none;}
+  .conditional.show{display:block;}
+  .collateral-photo-box{
+    width:120px;height:90px;
+    border:2px dashed #c9c4b6;
+    border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:.8rem;text-align:center;
+    cursor:pointer;overflow:hidden;background:#fff;
+  }
+  .collateral-photo-box img{width:100%;height:100%;object-fit:cover;display:block;}
+  .draft-bar{
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    background:#FFF8E1;
+    border:1px solid var(--gold-soft);
+    border-radius:6px;
+    padding:10px 14px;
+    margin-bottom:18px;
+    font-size:.85rem;
+  }
+  .draft-bar.show{display:flex;}
+  .draft-bar button{
+    background:transparent;border:1px solid var(--navy);color:var(--navy);
+    padding:6px 12px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:.8rem;
+  }
+  #whatsappBtn{background:#1F7A4D; color:#fff; border:none;}
+  #reviewScreen .review-actions{padding:0 24px;}
+  #reviewScreen .send-note{padding:0 24px 22px;}
+  .send-note{
+    font-size:.8rem;color:var(--muted);margin-top:10px;line-height:1.5;text-align:center;
+  }
+  @media print{
+    .send-note, .draft-bar{display:none !important;}
+  }
 </style>
 </head>
 <body>
@@ -638,7 +699,7 @@
     <button type="button" onclick="event.stopPropagation();document.getElementById('photoInput').click()">Upload/Camera</button>
     <button type="button" onclick="event.stopPropagation();clearPhoto()">Clear</button>
   </div>
-  <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(event)">
+  <input type="file" id="photoInput" accept="image/*" capture="user" style="display:none" onchange="loadPhoto(event)">
 </header>
 
 <div class="wrap">
@@ -646,9 +707,15 @@
   <div class="card intro">
     <h2>Before you apply</h2>
     <p>Please complete every section accurately. Information provided here is used solely to assess your loan request and will be kept confidential. Fields marked <span style="color:#B3261E;">*</span> are required.</p>
+    <p>Loans from <strong>GHS 100 to GHS 5,000</strong>, repaid over 1 to 6 months. Your progress is saved on this phone as you type.</p>
   </div>
 
-  <form id="loanForm">
+  <div class="draft-bar" id="draftBar">
+    <span>We restored your unfinished application.</span>
+    <button type="button" id="startOverBtn">Start over</button>
+  </div>
+
+  <form id="loanForm" novalidate>
 
     <!-- SECTION 1 -->
     <div class="card">
@@ -677,7 +744,7 @@
         <div class="field" data-required>
           <label>Date of Birth<span class="req">*</span></label>
           <input type="date" name="dob">
-          <div class="error-msg">Please select your date of birth.</div>
+          <div class="error-msg" data-default="Please select your date of birth.">Please select your date of birth.</div>
         </div>
         <div class="field" data-required>
           <label>Gender<span class="req">*</span></label>
@@ -693,14 +760,25 @@
 
       <div class="field" data-required>
         <label>National ID / Voter ID Number<span class="req">*</span></label>
-        <input type="text" name="nationalId" placeholder="e.g. GHA-XXXXXXXXX-X">
-        <div class="error-msg">Please enter your ID number.</div>
+        <input type="text" name="nationalId" placeholder="e.g. GHA-XXXXXXXXX-X" autocapitalize="characters">
+        <div class="error-msg" data-default="Please enter your ID number.">Please enter your ID number.</div>
       </div>
 
       <div class="field" data-required>
         <label>Phone Number<span class="req">*</span></label>
-        <input type="tel" name="phone" placeholder="0XX XXX XXXX">
-        <div class="error-msg">Please enter a valid phone number.</div>
+        <input type="tel" name="phone" placeholder="0XX XXX XXXX" inputmode="tel">
+        <div class="error-msg" data-default="Please enter a valid phone number.">Please enter a valid phone number.</div>
+      </div>
+
+      <div class="field">
+        <label>WhatsApp Number (if different)</label>
+        <input type="tel" name="whatsapp" placeholder="0XX XXX XXXX" inputmode="tel">
+        <div class="error-msg" data-default="Please enter a valid 10-digit number, e.g. 0241234567.">Please enter a valid 10-digit number, e.g. 0241234567.</div>
+      </div>
+
+      <div class="field">
+        <label>Digital Address (GhanaPost GPS)</label>
+        <input type="text" name="gpsAddress" placeholder="e.g. AK-123-4567" autocapitalize="characters">
       </div>
 
       <div class="field" data-required>
@@ -748,14 +826,48 @@
 
     <!-- SECTION 3 -->
     <div class="card">
-      <p class="section-title"><span class="section-num">3.</span>Loan Requested</p>
+      <p class="section-title"><span class="section-num">3.</span>Next of Kin / Emergency Contact</p>
+      <p class="section-sub">Someone we can reach if we cannot reach you</p>
+
+      <div class="field" data-required>
+        <label>Full Name<span class="req">*</span></label>
+        <input type="text" name="kinName" placeholder="e.g. Ama Boateng">
+        <div class="error-msg">Please enter your next of kin's name.</div>
+      </div>
+
+      <div class="two-col">
+        <div class="field" data-required>
+          <label>Relationship<span class="req">*</span></label>
+          <select name="kinRelationship">
+            <option value="">Select</option>
+            <option>Parent</option>
+            <option>Spouse</option>
+            <option>Sibling</option>
+            <option>Child</option>
+            <option>Relative</option>
+            <option>Friend</option>
+            <option>Other</option>
+          </select>
+          <div class="error-msg">Please select the relationship.</div>
+        </div>
+        <div class="field" data-required>
+          <label>Phone Number<span class="req">*</span></label>
+          <input type="tel" name="kinPhone" placeholder="0XX XXX XXXX" inputmode="tel">
+          <div class="error-msg" data-default="Please enter their phone number.">Please enter their phone number.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4 -->
+    <div class="card">
+      <p class="section-title"><span class="section-num">4.</span>Loan Requested</p>
       <p class="section-sub">Details of the loan you're applying for</p>
 
       <div class="two-col">
         <div class="field" data-required>
           <label>Loan Amount Requested (GHS)<span class="req">*</span></label>
-          <input type="number" name="loanAmount" min="0" placeholder="e.g. 2000">
-          <div class="error-msg">Please enter the amount requested.</div>
+          <input type="number" name="loanAmount" min="100" max="5000" step="1" inputmode="numeric" placeholder="100 – 5,000">
+          <div class="error-msg" data-default="Please enter the amount requested.">Please enter the amount requested.</div>
         </div>
         <div class="field" data-required>
           <label>Repayment Period<span class="req">*</span></label>
@@ -772,11 +884,17 @@
         </div>
       </div>
 
+      <div class="loan-summary" id="loanSummary" aria-live="polite">
+        <div class="ls-item"><span class="ls-k">Interest</span><span class="ls-v" id="lsInterest">—</span></div>
+        <div class="ls-item"><span class="ls-k">Total to repay</span><span class="ls-v" id="lsTotal">—</span></div>
+        <div class="ls-item"><span class="ls-k">Due by (est.)</span><span class="ls-v" id="lsDue">—</span></div>
+      </div>
+
       <div class="field" data-required>
         <label>Total Repayment Amount (GHS)<span class="req">*</span></label>
-        <input type="number" name="repaymentAmount" min="0" placeholder="Auto-calculated" readonly style="background:#f2f0e8;">
+        <input type="number" name="repaymentAmount" min="0" placeholder="Auto-calculated" readonly tabindex="-1" style="background:#f2f0e8;">
         <div class="hint">Auto-calculated from loan amount and repayment period. Loan amount plus interest — the full amount to be repaid by the due date.</div>
-        <div class="error-msg">Please enter the total repayment amount.</div>
+        <div class="error-msg">Enter a loan amount and repayment period first.</div>
       </div>
 
       <div class="field" data-required>
@@ -794,24 +912,85 @@
         </div>
         <div class="error-msg">Please select a loan disbursement method.</div>
       </div>
+
+      <div class="conditional" id="momoFields">
+        <div class="two-col">
+          <div class="field" data-cond-required>
+            <label>Mobile Money Number<span class="req">*</span></label>
+            <input type="tel" name="momoNumber" placeholder="0XX XXX XXXX" inputmode="tel">
+            <div class="error-msg" data-default="Please enter your Mobile Money number.">Please enter your Mobile Money number.</div>
+          </div>
+          <div class="field" data-cond-required>
+            <label>Network<span class="req">*</span></label>
+            <select name="momoNetwork">
+              <option value="">Select</option>
+              <option>MTN MoMo</option>
+              <option>Telecel Cash</option>
+              <option>AT Money</option>
+            </select>
+            <div class="error-msg">Please select your network.</div>
+          </div>
+        </div>
+        <div class="field" data-cond-required>
+          <label>Name on Mobile Money Account<span class="req">*</span></label>
+          <input type="text" name="momoName" placeholder="As registered">
+          <div class="error-msg">Please enter the registered account name.</div>
+        </div>
+      </div>
+
+      <div class="conditional" id="bankFields">
+        <div class="two-col">
+          <div class="field" data-cond-required>
+            <label>Bank Name<span class="req">*</span></label>
+            <input type="text" name="bankName" placeholder="e.g. your bank">
+            <div class="error-msg">Please enter your bank name.</div>
+          </div>
+          <div class="field" data-cond-required>
+            <label>Account Number<span class="req">*</span></label>
+            <input type="text" name="bankAccount" inputmode="numeric" placeholder="Account number">
+            <div class="error-msg">Please enter your account number.</div>
+          </div>
+        </div>
+        <div class="field" data-cond-required>
+          <label>Account Name<span class="req">*</span></label>
+          <input type="text" name="bankAccountName" placeholder="As shown by the bank">
+          <div class="error-msg">Please enter the account name.</div>
+        </div>
+      </div>
     </div>
 
-    <!-- SECTION 4 -->
+    <!-- SECTION 5 -->
     <div class="card">
-      <p class="section-title"><span class="section-num">4.</span>Collateral / Security</p>
+      <p class="section-title"><span class="section-num">5.</span>Collateral / Security</p>
       <p class="section-sub">Required to secure this loan</p>
 
       <div class="field" data-required>
         <label>Description of Collateral<span class="req">*</span></label>
-        <textarea name="collateralDescription" placeholder="e.g. phone, TV, motorbike, land document — include estimated value"></textarea>
+        <textarea name="collateralDescription" placeholder="e.g. Samsung A54 phone, 32-inch TV, motorbike — include model and condition"></textarea>
         <div class="error-msg">Please describe the collateral you are offering.</div>
       </div>
 
       <div class="field" data-required>
-        <label>Grace Period Before Collateral Sale (days)<span class="req">*</span></label>
-        <input type="number" name="gracePeriodDays" min="0" value="7" style="max-width:120px;">
+        <label>Estimated Value of Collateral (GHS)<span class="req">*</span></label>
+        <input type="number" name="collateralValue" min="1" inputmode="numeric" placeholder="e.g. 3000">
+        <div class="error-msg">Please enter the estimated value.</div>
+      </div>
+
+      <div class="field">
+        <label>Photo of Collateral (optional)</label>
+        <div class="collateral-photo-box" id="collateralPhotoBox" onclick="document.getElementById('collateralInput').click()">
+          <span id="collateralPlaceholder">Tap to add photo</span>
+          <img id="collateralPreview" style="display:none;" alt="Collateral photo">
+        </div>
+        <input type="file" id="collateralInput" accept="image/*" capture="environment" style="display:none" onchange="loadCollateralPhoto(event)">
+        <div class="hint">Helps us assess your request faster. The item will be inspected in person.</div>
+      </div>
+
+      <div class="field">
+        <label>Grace Period Before Collateral Sale</label>
+        <span class="fixed-value">7 days</span>
+        <input type="hidden" name="gracePeriodDays" value="7">
         <div class="hint">Days after the repayment due date before GENXCHOICE QUICK LOAN may sell the collateral to recover the loan, if it remains unpaid.</div>
-        <div class="error-msg">Please enter the grace period in days.</div>
       </div>
 
       <div class="field" data-required>
@@ -820,12 +999,10 @@
       </div>
     </div>
 
-    <!-- SECTION 5: Declaration -->
+    <!-- SECTION 6: Declaration -->
     <div class="card">
-      <p class="section-title"><span class="section-num">5.</span>Declaration</p>
-      <div class="declaration">
-        I confirm that the information provided in this application is true and accurate to the best of my knowledge, and that the collateral described above is rightfully mine and not stolen or under any dispute. I understand that GENXCHOICE QUICK LOAN will assess this application and that providing false information may result in rejection of the loan or other action. I agree to repay the loan amount, together with any applicable interest, according to the terms agreed upon at disbursement. I understand that if I fail to repay as agreed, the collateral I have provided may be sold by GENXCHOICE QUICK LOAN to recover the outstanding amount. If I default, GENXCHOICE QUICK LOAN may sell the collateral at a price sufficient for prompt recovery. From the sale price, GENXCHOICE QUICK LOAN will first deduct a collateral recovery fee of 15% of the sale price, then apply the remainder to my outstanding balance (after deducting any payments already made). Any remaining surplus will be returned to me.
-      </div>
+      <p class="section-title"><span class="section-num">6.</span>Declaration</p>
+      <div class="declaration" id="declarationText"></div>
 
       <div class="field" data-required>
         <label><input type="checkbox" name="agree" style="width:auto; margin-right:8px;">I have read and agree to the declaration above, including the sale of my collateral if I default<span class="req">*</span></label>
@@ -858,22 +1035,10 @@
         <div class="field" data-required>
           <label>Date<span class="req">*</span></label>
           <input type="date" name="signDate">
-          <div class="error-msg">Please select a date.</div>
+          <div class="error-msg" data-default="Please select a date.">Please select a date.</div>
         </div>
       </div>
-
-      <p class="section-title" style="font-size:.95rem;margin-top:10px;">Lender — GENXCHOICE QUICK LOAN</p>
-      <div class="sig-row">
-        <div class="field">
-          <label>Signature (sign by hand after printing)</label>
-          <div class="sign-blank"></div>
-        </div>
-        <div class="field" data-required>
-          <label>Date<span class="req">*</span></label>
-          <input type="date" name="lenderSignDate">
-          <div class="error-msg">Please select a date.</div>
-        </div>
-      </div>
+      <p class="hint" style="margin-top:0;">GENXCHOICE QUICK LOAN will sign and date the lender section when your application is approved.</p>
     </div>
 
     <div class="card" style="border-top-color:var(--navy);">
@@ -887,7 +1052,8 @@
       <div class="review-header">
         <div class="check">✓</div>
         <div style="font-weight:600; font-size:1.1rem;">Application Ready</div>
-        <div style="font-size:.85rem; color:var(--gold-soft); margin-top:4px;">Review your details below before handing this in</div>
+        <div style="font-size:.85rem; color:var(--gold-soft); margin-top:4px;">Check your details, then send them to us on WhatsApp</div>
+        <div style="font-size:.8rem; color:#fff; margin-top:6px;" id="screenRef"></div>
       </div>
       <div class="print-letterhead">
         <div class="letterhead-brand">
@@ -933,26 +1099,69 @@
       <div class="print-footer">GENXCHOICE QUICK LOAN · This copy is confidential and intended solely for loan assessment purposes.</div>
 
       <div class="review-actions">
+        <button id="whatsappBtn" type="button" style="flex-basis:100%;">Send to GENXCHOICE on WhatsApp</button>
         <button id="editBtn" type="button">Edit</button>
-        <button id="printBtn" type="button">Print / Save as PDF</button>
+        <button id="printBtn" type="button">Save as PDF</button>
       </div>
+      <p class="send-note">Step 1: tap <strong>Send on WhatsApp</strong> to send your details.<br>Step 2: tap <strong>Save as PDF</strong>, then attach the PDF in the same WhatsApp chat so we receive your photo and signature.</p>
     </div>
   </div>
 
-  <footer class="note">GENXCHOICE QUICK LOAN · This form does not send data anywhere — it stays on this device until printed or saved.</footer>
+  <footer class="note">GENXCHOICE QUICK LOAN · Nothing is sent until you tap "Send on WhatsApp". Your unfinished form is saved only on this device.</footer>
 </div>
 
 <script>
+/* ---------- Settings (change these if needed) ---------- */
+const CONFIG = {
+  whatsappNumber: '233549572669',   // GENXCHOICE WhatsApp, international format without +
+  minLoan: 100,
+  maxLoan: 5000,
+  minAge: 18,
+  graceDays: 7
+};
+
+const DECLARATION_TEXT = "I confirm that the information provided in this application is true and accurate to the best of my knowledge, and that the collateral described above is rightfully mine and not stolen or under any dispute. I understand that GENXCHOICE QUICK LOAN will assess this application and that providing false information may result in rejection of the loan or other action. I agree to repay the loan amount, together with any applicable interest, according to the terms agreed upon at disbursement. I understand that if I fail to repay as agreed, the collateral I have provided may be sold by GENXCHOICE QUICK LOAN to recover the outstanding amount. If I default, GENXCHOICE QUICK LOAN may sell the collateral at a price sufficient for prompt recovery. From the sale price, GENXCHOICE QUICK LOAN will first deduct a collateral recovery fee of 15% of the sale price, then apply the remainder to my outstanding balance (after deducting any payments already made). Any remaining surplus will be returned to me.";
+document.getElementById('declarationText').textContent = DECLARATION_TEXT;
+
 const form = document.getElementById('loanForm');
 const reviewScreen = document.getElementById('reviewScreen');
 const reviewBody = document.getElementById('reviewBody');
+let currentRef = null;
 
-function fieldsIn(card){
-  return Array.from(card.querySelectorAll('.field[data-required]'));
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function todayISO(){
+  const t = new Date();
+  return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+}
+function isGhanaPhone(v){
+  const digits = String(v).replace(/[\s-]/g, '');
+  return /^0\d{9}$/.test(digits) || /^\+?233\d{9}$/.test(digits);
+}
+function money(n){
+  return 'GHS ' + Number(n).toLocaleString('en-GH', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function isFieldActive(field){
+  const cond = field.closest('.conditional');
+  return !cond || cond.classList.contains('show');
+}
+
+function setFieldError(field, message){
+  const err = field.querySelector('.error-msg');
+  if(err && message) err.textContent = message;
+  field.classList.add('invalid');
+}
+function resetFieldError(field){
+  const err = field.querySelector('.error-msg');
+  if(err && err.dataset.default) err.textContent = err.dataset.default;
 }
 
 function validateField(field){
-  const input = field.querySelector('input, select, textarea');
+  if(!isFieldActive(field)){ field.classList.remove('invalid'); return true; }
+  resetFieldError(field);
+  const input = field.querySelector('input:not([type=hidden]), select, textarea');
   let valid = true;
   if(!input) return true;
 
@@ -970,9 +1179,63 @@ function validateField(field){
   return valid;
 }
 
+function fieldOf(name){
+  const el = form.querySelector(`[name="${name}"]`);
+  return el ? el.closest('.field') : null;
+}
+
+/* Extra rules beyond "not empty". Returns the first field that failed, or null. */
+function runExtraChecks(){
+  let first = null;
+  function fail(name, msg){
+    const f = fieldOf(name);
+    if(!f) return;
+    setFieldError(f, msg);
+    if(!first) first = f;
+  }
+
+  const phone = val('phone');
+  if(phone && !isGhanaPhone(phone)) fail('phone', 'Enter a valid 10-digit number, e.g. 0241234567.');
+
+  const wa = val('whatsapp');
+  if(wa && !isGhanaPhone(wa)) fail('whatsapp', 'Enter a valid 10-digit number, e.g. 0241234567.');
+  else if(!wa) fieldOf('whatsapp').classList.remove('invalid');
+
+  const kinPhone = val('kinPhone');
+  if(kinPhone && !isGhanaPhone(kinPhone)) fail('kinPhone', 'Enter a valid 10-digit number, e.g. 0241234567.');
+  else if(kinPhone && kinPhone.replace(/\D/g,'').slice(-9) === phone.replace(/\D/g,'').slice(-9)) fail('kinPhone', 'Next of kin must have a different number from yours.');
+
+  const dob = val('dob');
+  if(dob){
+    const d = new Date(dob + 'T00:00:00');
+    const now = new Date();
+    let age = now.getFullYear() - d.getFullYear();
+    const m = now.getMonth() - d.getMonth();
+    if(m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+    if(isNaN(age) || age < CONFIG.minAge) fail('dob', `You must be at least ${CONFIG.minAge} years old to apply.`);
+    else if(age > 100) fail('dob', 'Please check your date of birth.');
+  }
+
+  const id = val('nationalId').trim();
+  if(id && id.replace(/[\s-]/g,'').length < 6) fail('nationalId', 'This ID number looks too short. Please check it.');
+
+  const amt = parseFloat(val('loanAmount'));
+  if(val('loanAmount') && (isNaN(amt) || amt < CONFIG.minLoan || amt > CONFIG.maxLoan)){
+    fail('loanAmount', `Amount must be between GHS ${CONFIG.minLoan.toLocaleString()} and GHS ${CONFIG.maxLoan.toLocaleString()}.`);
+  }
+
+  const momo = val('momoNumber');
+  if(val('disbursementMethod') === 'Mobile Money' && momo && !isGhanaPhone(momo)) fail('momoNumber', 'Enter a valid 10-digit Mobile Money number.');
+
+  const signDate = val('signDate');
+  if(signDate && signDate > todayISO()) fail('signDate', 'The date cannot be in the future.');
+
+  return first;
+}
+
 form.addEventListener('submit', function(e){
   e.preventDefault();
-  const requiredFields = document.querySelectorAll('.field[data-required]');
+  const requiredFields = Array.from(document.querySelectorAll('.field[data-required], .field[data-cond-required]'));
   let allValid = true;
   let firstInvalid = null;
 
@@ -990,6 +1253,12 @@ form.addEventListener('submit', function(e){
     }
   });
 
+  const extraInvalid = runExtraChecks();
+  if(extraInvalid){
+    allValid = false;
+    if(!firstInvalid) firstInvalid = extraInvalid;
+  }
+
   const sigOk = validateSignaturePad();
   if(!sigOk){
     allValid = false;
@@ -1001,20 +1270,80 @@ form.addEventListener('submit', function(e){
     return;
   }
 
+  if(!currentRef) currentRef = makeRef();
   buildReview();
-  form.closest('.wrap') ? null : null;
   document.querySelectorAll('.card').forEach(c => { c.style.display='none'; });
+  document.getElementById('draftBar').classList.remove('show');
   form.style.display = 'none';
   reviewScreen.style.display = 'block';
   reviewScreen.scrollIntoView({behavior:'smooth'});
 });
 
+/* Clear an error as soon as the person edits that field */
+form.addEventListener('input', function(e){
+  const f = e.target.closest('.field');
+  if(f && f.classList.contains('invalid')){ f.classList.remove('invalid'); resetFieldError(f); }
+});
+form.addEventListener('change', function(e){
+  const f = e.target.closest('.field');
+  if(f && f.classList.contains('invalid')){ f.classList.remove('invalid'); resetFieldError(f); }
+});
+
 document.getElementById('editBtn').addEventListener('click', function(){
+  draftLocked = false;
   document.querySelectorAll('.card').forEach(c => c.style.display='block');
   form.style.display='block';
   reviewScreen.style.display='none';
   window.scrollTo({top:0, behavior:'smooth'});
 });
+
+function makeRef(){
+  const t = new Date();
+  return 'GXC-' + t.getFullYear() + String(t.getMonth()+1).padStart(2,'0') + String(t.getDate()).padStart(2,'0') + '-' + String(Math.floor(1000 + Math.random()*9000));
+}
+
+/* ---------- Send on WhatsApp ---------- */
+document.getElementById('whatsappBtn').addEventListener('click', function(){
+  const fullName = [val('firstName'), val('middleName'), val('surname')].filter(Boolean).join(' ');
+  const lines = [
+    '*GENXCHOICE QUICK LOAN — New Application*',
+    'Ref: ' + currentRef,
+    '',
+    '*Applicant*',
+    'Name: ' + fullName,
+    'Phone: ' + val('phone') + (val('whatsapp') ? ' (WhatsApp: ' + val('whatsapp') + ')' : ''),
+    'ID: ' + val('nationalId'),
+    'Address: ' + val('address').replace(/\s+/g,' ') + (val('gpsAddress') ? ' (' + val('gpsAddress') + ')' : ''),
+    'Work: ' + val('employmentStatus') + (val('employerName') ? ' — ' + val('employerName') : ''),
+    'Monthly income: GHS ' + val('monthlyIncome'),
+    'Other loans: ' + (val('existingLoans') || 'Not stated'),
+    '',
+    '*Next of kin*',
+    val('kinName') + ' (' + val('kinRelationship') + ') — ' + val('kinPhone'),
+    '',
+    '*Loan*',
+    'Amount: GHS ' + val('loanAmount'),
+    'Period: ' + val('repaymentPeriod'),
+    'Total to repay: GHS ' + val('repaymentAmount'),
+    'Purpose: ' + val('loanPurpose').replace(/\s+/g,' '),
+    'Payout: ' + payoutSummary(),
+    '',
+    '*Collateral*',
+    val('collateralDescription').replace(/\s+/g,' '),
+    'Estimated value: GHS ' + val('collateralValue'),
+    '',
+    'I agree to the declaration and terms. I will attach the signed PDF in this chat.'
+  ];
+  const url = 'https://wa.me/' + CONFIG.whatsappNumber + '?text=' + encodeURIComponent(lines.join('\n'));
+  window.open(url, '_blank');
+});
+
+function payoutSummary(){
+  const m = val('disbursementMethod');
+  if(m === 'Mobile Money') return 'Mobile Money — ' + val('momoNetwork') + ' ' + val('momoNumber') + ' (' + val('momoName') + ')';
+  if(m === 'Bank Transfer') return 'Bank — ' + val('bankName') + ' ' + val('bankAccount') + ' (' + val('bankAccountName') + ')';
+  return m;
+}
 
 document.getElementById('printBtn').addEventListener('click', function(){
   window.print();
@@ -1033,16 +1362,31 @@ const loanAmountInput = form.querySelector('[name="loanAmount"]');
 const repaymentPeriodSelect = form.querySelector('[name="repaymentPeriod"]');
 const repaymentAmountInput = form.querySelector('[name="repaymentAmount"]');
 
+function addMonthsISO(iso, months){
+  const d = new Date(iso + 'T00:00:00');
+  d.setMonth(d.getMonth() + months);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 function autoCalculateRepayment(){
   const principal = parseFloat(loanAmountInput.value);
   const rate = REPAYMENT_RATES[repaymentPeriodSelect.value];
+  const inRange = !isNaN(principal) && principal >= CONFIG.minLoan && principal <= CONFIG.maxLoan;
 
-  if(!isNaN(principal) && principal > 0 && rate !== undefined){
-    const total = principal + (principal * rate);
-    repaymentAmountInput.value = Math.round(total * 100) / 100;
+  if(inRange && rate !== undefined){
+    const interest = Math.round(principal * rate * 100) / 100;
+    const total = Math.round((principal + interest) * 100) / 100;
+    repaymentAmountInput.value = total;
     repaymentAmountInput.closest('.field').classList.remove('invalid');
+    const months = parseInt(repaymentPeriodSelect.value, 10);
+    document.getElementById('lsInterest').textContent = money(interest) + ' (' + Math.round(rate*100) + '%)';
+    document.getElementById('lsTotal').textContent = money(total);
+    document.getElementById('lsDue').textContent = formatDateLong(addMonthsISO(val('signDate') || todayISO(), months));
   } else {
     repaymentAmountInput.value = '';
+    document.getElementById('lsInterest').textContent = '—';
+    document.getElementById('lsTotal').textContent = '—';
+    document.getElementById('lsDue').textContent = '—';
   }
 }
 
@@ -1075,7 +1419,7 @@ function val(name){
 }
 
 function row(label, value){
-  return `<div class="review-row"><span class="k">${label}</span><span class="v">${value || '—'}</span></div>`;
+  return `<div class="review-row"><span class="k">${label}</span><span class="v">${value ? escapeHtml(value) : '—'}</span></div>`;
 }
 
 function sectionLabel(text){
@@ -1083,7 +1427,7 @@ function sectionLabel(text){
 }
 
 function declarationBlock(){
-  const declarationText = "I confirm that the information provided in this application is true and accurate to the best of my knowledge, and that the collateral described above is rightfully mine and not stolen or under any dispute. I understand that GENXCHOICE QUICK LOAN will assess this application and that providing false information may result in rejection of the loan or other action. I agree to repay the loan amount, together with any applicable interest, according to the terms agreed upon at disbursement. I understand that if I fail to repay as agreed, the collateral I have provided may be sold by GENXCHOICE QUICK LOAN to recover the outstanding amount. If I default, GENXCHOICE QUICK LOAN may sell the collateral at a price sufficient for prompt recovery. From the sale price, GENXCHOICE QUICK LOAN will first deduct a collateral recovery fee of 15% of the sale price, then apply the remainder to my outstanding balance (after deducting any payments already made). Any remaining surplus will be returned to me.";
+  const declarationText = DECLARATION_TEXT;
   const agreed = document.querySelector('[name="agree"]').checked;
   const checkMark = agreed ? '\u2611' : '\u2610';
   return `
@@ -1106,7 +1450,9 @@ function buildReview(){
   html += row('Gender', val('gender'));
   html += row('National ID', val('nationalId'));
   html += row('Phone', val('phone'));
+  html += row('WhatsApp', val('whatsapp') || val('phone'));
   html += row('Address', val('address'));
+  html += row('Digital Address', val('gpsAddress'));
 
   html += sectionLabel('Employment & Income');
   html += row('Employment Status', val('employmentStatus'));
@@ -1114,17 +1460,28 @@ function buildReview(){
   html += row('Monthly Income (GHS)', val('monthlyIncome'));
   html += row('Existing Loans', val('existingLoans'));
 
+  html += sectionLabel('Next of Kin');
+  html += row('Name', val('kinName'));
+  html += row('Relationship', val('kinRelationship'));
+  html += row('Phone', val('kinPhone'));
+
   html += sectionLabel('Loan Requested');
   html += row('Amount (GHS)', val('loanAmount'));
   html += row('Repayment Period', val('repaymentPeriod'));
   html += row('Total Repayment Amount (GHS)', val('repaymentAmount'));
   html += row('Purpose', val('loanPurpose'));
   html += row('Loan Disbursement Method', val('disbursementMethod'));
+  if(val('disbursementMethod') !== 'Cash') html += row('Payout Details', payoutSummary());
 
   html += sectionLabel('Collateral');
   html += row('Description', val('collateralDescription'));
+  html += row('Estimated Value (GHS)', val('collateralValue'));
   html += row('Grace Period Before Sale (days)', val('gracePeriodDays'));
   html += row('Ownership Confirmed', val('ownershipConfirm'));
+  const colImg = document.getElementById('collateralPreview');
+  if(colImg && colImg.style.display !== 'none' && colImg.src){
+    html += '<div style="margin:10px 0;"><img src="'+colImg.src+'" alt="Collateral photo" style="max-width:220px;max-height:160px;object-fit:cover;border:1px solid #dcd6c8;border-radius:6px;"></div>';
+  }
   html += `<div class="review-declaration-check" style="margin-top:6px;">I confirm this collateral belongs to me and is not stolen, pledged, or owned by someone else.</div>`;
 
   html += sectionLabel('Declaration');
@@ -1133,7 +1490,7 @@ function buildReview(){
   reviewBody.innerHTML = html;
 
   document.getElementById('sigBorrowerDate').textContent = val('signDate') ? 'Date: ' + formatDateLong(val('signDate')) : 'Date: ______________';
-  document.getElementById('sigLenderDate').textContent = val('lenderSignDate') ? 'Date: ' + formatDateLong(val('lenderSignDate')) : 'Date: ______________';
+  document.getElementById('sigLenderDate').textContent = 'Date: ______________';
 
   const borrowerSigImg = document.getElementById('borrowerSigImg');
   const borrowerSigLine = document.getElementById('borrowerSigLine');
@@ -1151,8 +1508,9 @@ function buildReview(){
   const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
   document.getElementById('printDate').textContent = 'Printed: ' + formatDateLong(todayStr);
 
-  const refCode = 'GXC-' + today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0') + '-' + String(Math.floor(1000 + Math.random()*9000));
+  const refCode = currentRef;
   document.getElementById('printRef').textContent = 'Ref: ' + refCode;
+  document.getElementById('screenRef').textContent = 'Reference: ' + refCode;
   document.getElementById('officeLoanId').textContent = refCode;
   document.getElementById('officeApprovedAmount').textContent = val('loanAmount') ? Number(val('loanAmount')).toLocaleString() : '';
 
@@ -1171,20 +1529,114 @@ function buildReview(){
   }
 }
 
+/* Shrink camera photos so the PDF stays small enough to send on WhatsApp */
+function compressImage(file, maxSize, callback){
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      callback(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = function(){ callback(ev.target.result); };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function loadPhoto(e){
   const file = e.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev){
+  compressImage(file, 600, function(dataUrl){
     const img = document.getElementById('photoPreview');
-    img.src = ev.target.result;
+    img.src = dataUrl;
     img.style.display = 'block';
     document.getElementById('photoPlaceholder').style.display = 'none';
     document.getElementById('photoBox').classList.remove('invalid');
     document.getElementById('photoErrorMsg').classList.remove('show');
-  };
-  reader.readAsDataURL(file);
+  });
 }
+
+function loadCollateralPhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  compressImage(file, 900, function(dataUrl){
+    const img = document.getElementById('collateralPreview');
+    img.src = dataUrl;
+    img.style.display = 'block';
+    document.getElementById('collateralPlaceholder').style.display = 'none';
+  });
+}
+
+/* ---------- Payout details shown only for the chosen method ---------- */
+function updatePayoutFields(){
+  const m = val('disbursementMethod');
+  document.getElementById('momoFields').classList.toggle('show', m === 'Mobile Money');
+  document.getElementById('bankFields').classList.toggle('show', m === 'Bank Transfer');
+}
+document.querySelectorAll('input[name="disbursementMethod"]').forEach(r => r.addEventListener('change', updatePayoutFields));
+
+/* Default the signing date to today and block future dates */
+const signDateInput = form.querySelector('[name="signDate"]');
+signDateInput.max = todayISO();
+form.querySelector('[name="dob"]').max = todayISO();
+signDateInput.addEventListener('change', autoCalculateRepayment);
+
+/* ---------- Save progress on this device ---------- */
+const DRAFT_KEY = 'gxc_loan_draft_v1';
+const DRAFT_SKIP = ['repaymentAmount', 'gracePeriodDays'];
+
+let draftLocked = false;   // set once the form is sent or cleared, so it isn't saved again
+function saveDraft(){
+  if(draftLocked) return;
+  const data = {};
+  form.querySelectorAll('input[name], select[name], textarea[name]').forEach(el => {
+    if(DRAFT_SKIP.includes(el.name) || el.type === 'file') return;
+    if(el.type === 'radio'){ if(el.checked) data[el.name] = el.value; }
+    else if(el.type === 'checkbox'){ data[el.name] = el.checked; }
+    else { data[el.name] = el.value; }
+  });
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch(err) {}
+}
+
+function restoreDraft(){
+  let data = null;
+  try { data = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch(err) {}
+  if(!data) return false;
+  let restored = false;
+  Object.keys(data).forEach(name => {
+    const els = form.querySelectorAll(`[name="${name}"]`);
+    els.forEach(el => {
+      if(el.type === 'radio'){ el.checked = (el.value === data[name]); }
+      else if(el.type === 'checkbox'){ el.checked = !!data[name]; }
+      else { el.value = data[name]; }
+    });
+    if(data[name] && name !== 'sigMethod') restored = true;
+  });
+  return restored;
+}
+
+function clearDraft(){
+  draftLocked = true;
+  clearTimeout(saveTimer);
+  try { localStorage.removeItem(DRAFT_KEY); } catch(err) {}
+}
+
+let saveTimer = null;
+form.addEventListener('input', () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 400); });
+form.addEventListener('change', saveDraft);
+window.addEventListener('pagehide', saveDraft);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') saveDraft(); });
+
+document.getElementById('startOverBtn').addEventListener('click', function(){
+  if(!confirm('Clear everything and start a new application?')) return;
+  clearDraft();
+  window.location.reload();
+});
 function clearPhoto(){
   const img = document.getElementById('photoPreview');
   img.src = '';
@@ -1298,6 +1750,18 @@ function getSignatureDataUrl(){
   if(currentSigMethod() !== 'digital' || !sigHasDrawn) return null;
   return sigCanvas.toDataURL('image/png');
 }
+
+/* ---------- Start-up ---------- */
+if(restoreDraft()){
+  document.getElementById('draftBar').classList.add('show');
+}
+if(!signDateInput.value) signDateInput.value = todayISO();
+updatePayoutFields();
+updateSigMethodUI();
+autoCalculateRepayment();
+
+/* Once sent, the next visit starts fresh */
+document.getElementById('whatsappBtn').addEventListener('click', clearDraft);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

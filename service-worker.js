@@ -1,4 +1,4 @@
-const CACHE_NAME = 'genx-loan-form-v3';
+const CACHE_NAME = 'genx-loan-form-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -30,16 +30,26 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  // Pages: try the internet first so customers always get the newest form,
+  // fall back to the saved copy when offline.
+  if (req.mode === 'navigate' || req.destination === 'document') {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          return res;
         })
-      );
-    })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // Images, icons, manifest: use the saved copy first, it's faster.
+  event.respondWith(
+    caches.match(req).then((cached) => cached || fetch(req))
   );
 });
