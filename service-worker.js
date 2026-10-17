@@ -1,4 +1,4 @@
-const CACHE_NAME = 'genx-loan-form-v4';
+const CACHE_NAME = 'genx-loan-form-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

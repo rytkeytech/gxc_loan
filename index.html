@@ -671,6 +671,13 @@
     padding:6px 12px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:.8rem;
   }
   #whatsappBtn{background:#1F7A4D; color:#fff; border:none;}
+  #sendBtn{background:var(--navy); color:#fff; border:none; font-size:1rem; padding:14px;}
+  #sendBtn:disabled{opacity:.6; cursor:wait;}
+  .submit-status{display:none; margin:16px 24px 0; padding:14px 16px; border-radius:6px; font-size:.9rem; line-height:1.5;}
+  .submit-status.ok{display:block; background:#E3EFDD; color:#27500A; border:1px solid #97C459;}
+  .submit-status.err{display:block; background:#FCEBEB; color:#791F1F; border:1px solid #F09595;}
+  .hp-field{position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden;}
+  @media print{ .submit-status{display:none !important;} }
   #reviewScreen .review-actions{padding:0 24px;}
   #reviewScreen .send-note{padding:0 24px 22px;}
   .send-note{
@@ -1041,8 +1048,12 @@
       <p class="hint" style="margin-top:0;">GENXCHOICE QUICK LOAN will sign and date the lender section when your application is approved.</p>
     </div>
 
+    <div class="hp-field" aria-hidden="true">
+      <label>Leave this empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+    </div>
+
     <div class="card" style="border-top-color:var(--navy);">
-      <button type="submit" class="submit-btn">Submit Application</button>
+      <button type="submit" class="submit-btn">Review Application</button>
     </div>
   </form>
 
@@ -1098,21 +1109,25 @@
 
       <div class="print-footer">GENXCHOICE QUICK LOAN · This copy is confidential and intended solely for loan assessment purposes.</div>
 
+      <div class="submit-status" id="submitStatus" role="status" aria-live="polite"></div>
+
       <div class="review-actions">
+        <button id="sendBtn" type="button" style="flex-basis:100%;">Submit Application</button>
         <button id="whatsappBtn" type="button" style="flex-basis:100%;">Send to GENXCHOICE on WhatsApp</button>
         <button id="editBtn" type="button">Edit</button>
         <button id="printBtn" type="button">Save as PDF</button>
       </div>
-      <p class="send-note">Step 1: tap <strong>Send on WhatsApp</strong> to send your details.<br>Step 2: tap <strong>Save as PDF</strong>, then attach the PDF in the same WhatsApp chat so we receive your photo and signature.</p>
+      <p class="send-note" id="sendNote">Tap <strong>Submit Application</strong> to send it to GENXCHOICE QUICK LOAN. You can also save a PDF copy for yourself.</p>
     </div>
   </div>
 
-  <footer class="note">GENXCHOICE QUICK LOAN · Nothing is sent until you tap "Send on WhatsApp". Your unfinished form is saved only on this device.</footer>
+  <footer class="note">GENXCHOICE QUICK LOAN · Nothing is sent until you tap Submit or Send. Your unfinished form is saved only on this device.</footer>
 </div>
 
 <script>
 /* ---------- Settings (change these if needed) ---------- */
 const CONFIG = {
+  sheetUrl: '',                     // Google Apps Script Web app URL (ends in /exec). Empty = WhatsApp only.
   whatsappNumber: '233549572669',   // GENXCHOICE WhatsApp, international format without +
   minLoan: 100,
   maxLoan: 5000,
@@ -1272,6 +1287,11 @@ form.addEventListener('submit', function(e){
 
   if(!currentRef) currentRef = makeRef();
   buildReview();
+  if(!submitted){
+    document.getElementById('submitStatus').className = 'submit-status';
+    document.getElementById('sendBtn').textContent = 'Submit Application';
+  }
+  setupSendButtons();
   document.querySelectorAll('.card').forEach(c => { c.style.display='none'; });
   document.getElementById('draftBar').classList.remove('show');
   form.style.display = 'none';
@@ -1305,6 +1325,11 @@ function makeRef(){
 /* ---------- Send on WhatsApp ---------- */
 document.getElementById('whatsappBtn').addEventListener('click', function(){
   const fullName = [val('firstName'), val('middleName'), val('surname')].filter(Boolean).join(' ');
+  if(submitted){
+    const short = 'Hello GENXCHOICE QUICK LOAN, I have submitted a loan application.\nRef: ' + currentRef + '\nName: ' + fullName + '\nAmount: GHS ' + val('loanAmount');
+    window.open('https://wa.me/' + CONFIG.whatsappNumber + '?text=' + encodeURIComponent(short), '_blank');
+    return;
+  }
   const lines = [
     '*GENXCHOICE QUICK LOAN — New Application*',
     'Ref: ' + currentRef,
@@ -1336,6 +1361,97 @@ document.getElementById('whatsappBtn').addEventListener('click', function(){
   ];
   const url = 'https://wa.me/' + CONFIG.whatsappNumber + '?text=' + encodeURIComponent(lines.join('\n'));
   window.open(url, '_blank');
+});
+
+/* ---------- Submit to the Google Sheet ---------- */
+let submitted = false;
+
+function buildPayload(){
+  const photo = document.getElementById('photoPreview');
+  const colPhoto = document.getElementById('collateralPreview');
+  const months = parseInt(val('repaymentPeriod'), 10);
+  return {
+    ref: currentRef,
+    website: val('website'),
+    fullName: [val('firstName'), val('middleName'), val('surname')].filter(Boolean).join(' '),
+    phone: val('phone'),
+    whatsapp: val('whatsapp'),
+    dob: val('dob'),
+    gender: val('gender'),
+    nationalId: val('nationalId'),
+    address: val('address'),
+    gpsAddress: val('gpsAddress'),
+    employmentStatus: val('employmentStatus'),
+    employerName: val('employerName'),
+    monthlyIncome: val('monthlyIncome'),
+    existingLoans: val('existingLoans'),
+    kinName: val('kinName'),
+    kinRelationship: val('kinRelationship'),
+    kinPhone: val('kinPhone'),
+    loanAmount: val('loanAmount'),
+    months: isNaN(months) ? '' : months,
+    repaymentAmount: val('repaymentAmount'),
+    loanPurpose: val('loanPurpose'),
+    disbursementMethod: val('disbursementMethod'),
+    payoutDetails: val('disbursementMethod') === 'Cash' ? '' : payoutSummary(),
+    collateralDescription: val('collateralDescription'),
+    collateralValue: val('collateralValue'),
+    signDate: val('signDate'),
+    sigMethod: currentSigMethod(),
+    photo: (photo.style.display !== 'none' && photo.src.startsWith('data:')) ? photo.src : '',
+    collateralPhoto: (colPhoto.style.display !== 'none' && colPhoto.src.startsWith('data:')) ? colPhoto.src : '',
+    signature: getSignatureDataUrl() || ''
+  };
+}
+
+function showStatus(kind, html){
+  const el = document.getElementById('submitStatus');
+  el.className = 'submit-status ' + kind;
+  el.innerHTML = html;
+}
+
+function setupSendButtons(){
+  const sendBtn = document.getElementById('sendBtn');
+  const waBtn = document.getElementById('whatsappBtn');
+  if(!CONFIG.sheetUrl){
+    sendBtn.style.display = 'none';
+    waBtn.style.display = '';
+    document.getElementById('sendNote').innerHTML = 'Step 1: tap <strong>Send on WhatsApp</strong> to send your details.<br>Step 2: tap <strong>Save as PDF</strong>, then attach the PDF in the same WhatsApp chat so we receive your photo and signature.';
+    return;
+  }
+  const failed = document.getElementById('submitStatus').classList.contains('err');
+  sendBtn.style.display = submitted ? 'none' : '';
+  waBtn.style.display = (submitted || failed) ? '' : 'none';
+  waBtn.textContent = submitted ? 'Message us on WhatsApp' : 'Send on WhatsApp instead';
+}
+
+document.getElementById('sendBtn').addEventListener('click', async function(){
+  const btn = this;
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+  document.getElementById('submitStatus').className = 'submit-status';
+  try {
+    const res = await fetch(CONFIG.sheetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(buildPayload())
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Not saved');
+    submitted = true;
+    clearDraft();
+    showStatus('ok', '<strong>Application received.</strong> Your reference is <strong>' + escapeHtml(currentRef) + '</strong>. We will contact you on ' + escapeHtml(val('whatsapp') || val('phone')) + ' after reviewing it.');
+    document.getElementById('sendNote').textContent = 'Keep your reference number. You can save a PDF copy for your records.';
+    document.getElementById('editBtn').style.display = 'none';
+  } catch(err) {
+    const offline = !navigator.onLine;
+    showStatus('err', (offline ? '<strong>No internet connection.</strong> ' : '<strong>We could not submit your application.</strong> ') +
+      'Please try again. If it keeps failing, send it on WhatsApp instead.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = submitted ? 'Submitted' : 'Try again';
+    setupSendButtons();
+  }
 });
 
 function payoutSummary(){
