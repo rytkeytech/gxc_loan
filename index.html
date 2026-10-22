@@ -1608,12 +1608,16 @@ function pdfFileName(){
 async function buildApplicationPdf(){
   const { jsPDF } = await loadPdfLib();
   const doc = new jsPDF({ unit:'mm', format:'a4' });
-  const W = 210, H = 297, M = 16, CW = W - 2*M, BOTTOM = H - 20;
-  const NAVY = [11,31,58], GOLD = [201,162,39], INK = [28,32,40], MUTED = [104,111,124], LINE = [226,222,211], PAPER = [250,249,245];
+  const W = 210, H = 297, M = 14, CW = W - 2*M, BOTTOM = H - 18;
+  const NAVY = [11,31,58], GOLD = [201,162,39], INK = [20,24,32], MUTED = [90,98,112],
+        GRID = [150,156,168], SHADE = [237,240,245], PALE = [248,249,251];
 
-  const fullName = [val('firstName'), val('middleName'), val('surname')].filter(Boolean).join(' ');
+  const clean = s => String(s == null ? '' : s).replace(/[☐☑]/g, '').replace(/\s+/g, ' ').trim();
+  const money = v => { const n = parseFloat(String(v).replace(/,/g, '')); return isNaN(n) ? '' : 'GHS ' + n.toLocaleString('en-GH', { minimumFractionDigits:2, maximumFractionDigits:2 }); };
+  const font = (style, size, color) => { doc.setFont('helvetica', style); doc.setFontSize(size); doc.setTextColor(...(color || INK)); };
   const t = new Date();
   const todayStr = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+  const fullName = [val('firstName'), val('middleName'), val('surname')].filter(Boolean).join(' ');
 
   let logo = null;
   try { logo = await pdfImage(await blobToDataUrl(await fetch('logo.png').then(r => r.blob()))); } catch(e) {}
@@ -1621,183 +1625,233 @@ async function buildApplicationPdf(){
   const collateral = await pdfImage(shownImageSrc(document.getElementById('collateralPreview')));
   const sig = await pdfImage(getSignatureDataUrl() || '');
 
-  let y = 0;
-  const font = (style, size, color) => { doc.setFont('helvetica', style); doc.setFontSize(size); doc.setTextColor(...color); };
-  const clean = s => String(s == null ? '' : s).replace(/[☐☑]/g, '').replace(/\s+/g, ' ').trim();
+  const amount = parseFloat(val('loanAmount')) || 0;
+  const total = parseFloat(val('repaymentAmount')) || 0;
+  const interest = total && amount ? total - amount : 0;
+  const rate = amount && interest ? Math.round(interest / amount * 100) + '%' : '';
 
-  let firstPage = true;
+  let y = 0, sectionNo = 0;
+  const LETTERS = 'ABCDEFGH';
+
+  function fitImage(img, x, yy, w, h){
+    const k = Math.min(w / img.w, h / img.h), iw = img.w * k, ih = img.h * k;
+    doc.addImage(img.data, 'JPEG', x + (w - iw)/2, yy + (h - ih)/2, iw, ih);
+  }
+
+  /* ---- Letterhead (page 1) / running head (later pages) ---- */
+  let first = true;
   function header(){
-    if(!firstPage){
-      doc.setFillColor(...NAVY); doc.rect(0, 0, W, 12, 'F');
-      doc.setFillColor(...GOLD); doc.rect(0, 12, W, 0.8, 'F');
-      font('bold', 9, [255,255,255]); doc.text('GENXCHOICE QUICK LOAN — Loan Application', M, 7.8);
-      font('normal', 8.5, [214,219,228]); doc.text('Ref: ' + (currentRef || ''), W - M, 7.8, { align:'right' });
-      y = 22; return;
+    if(!first){
+      font('bold', 8.5, NAVY); doc.text('GENXCHOICE QUICK LOAN', M, 10);
+      font('normal', 8, MUTED); doc.text('Loan Application Form · Application No. ' + (currentRef || ''), W - M, 10, { align:'right' });
+      doc.setDrawColor(...NAVY); doc.setLineWidth(0.5); doc.line(M, 12.5, W - M, 12.5);
+      y = 19; return;
     }
-    firstPage = false;
-    doc.setFillColor(...NAVY); doc.rect(0, 0, W, 28, 'F');
-    doc.setFillColor(...GOLD); doc.rect(0, 28, W, 1.1, 'F');
-    let tx = M;
-    if(logo){
-      doc.setFillColor(255,255,255); doc.circle(M + 8, 14, 8, 'F');
-      const lw = 11, lh = lw * logo.h / logo.w;
-      doc.addImage(logo.data, 'JPEG', M + 8 - lw/2, 14 - lh/2, lw, lh);
-      tx = M + 21;
-    }
-    font('bold', 15, [255,255,255]); doc.text('GENXCHOICE QUICK LOAN', tx, 13.5);
-    font('normal', 8, GOLD); doc.text('LOAN APPLICATION', tx, 19.5, { charSpace: 0.8 });
-    font('bold', 9, [255,255,255]); doc.text('Ref: ' + (currentRef || ''), W - M, 12.5, { align:'right' });
-    font('normal', 8.5, [214,219,228]); doc.text(formatDateLong(todayStr), W - M, 18.5, { align:'right' });
-    y = 38;
+    first = false;
+    if(logo) fitImage(logo, M, 9, 18, 18);
+    const tx = logo ? M + 22 : M;
+    font('bold', 16, NAVY); doc.text('GENXCHOICE QUICK LOAN', tx, 16);
+    font('normal', 8, MUTED); doc.text('A division of GENX CHOICE ENTERPRISE', tx, 21);
+    doc.text('WhatsApp / Tel: +' + CONFIG.whatsappNumber, tx, 25);
+
+    // Passport photo box, top right
+    const pw = 30, ph = 36, px = W - M - pw, py = 8;
+    doc.setDrawColor(...GRID); doc.setLineWidth(0.3); doc.rect(px, py, pw, ph);
+    if(photo) fitImage(photo, px + 0.8, py + 0.8, pw - 1.6, ph - 1.6);
+    else { font('normal', 7, MUTED); doc.text(['PASSPORT', 'PHOTOGRAPH'], px + pw/2, py + ph/2 - 1, { align:'center' }); }
+
+    // Title band
+    doc.setFillColor(...NAVY); doc.rect(M, 31, px - M - 4, 8, 'F');
+    font('bold', 11, [255,255,255]); doc.text('LOAN APPLICATION FORM', M + 3, 36.6, { charSpace: 0.8 });
+    doc.setFillColor(...GOLD); doc.rect(M, 39, px - M - 4, 0.9, 'F');
+
+    // Reference strip
+    const rw = (px - M - 4) / 2;
+    [['APPLICATION NO.', currentRef || ''], ['DATE OF APPLICATION', formatDateLong(val('signDate') || todayStr)]].forEach((c, i) => {
+      const cx = M + i * rw;
+      doc.setDrawColor(...GRID); doc.setLineWidth(0.3); doc.rect(cx, 41.5, rw, 8);
+      font('normal', 6.3, MUTED); doc.text(c[0], cx + 2, 44.3);
+      font('bold', 8.8, INK); doc.text(c[1], cx + 2, 48.2);
+    });
+    y = 56;
   }
   function ensure(h){ if(y + h > BOTTOM){ doc.addPage(); header(); } }
 
   function section(title){
     ensure(16);
-    y += 3;
-    font('bold', 9.5, NAVY); doc.text(title.toUpperCase(), M, y, { charSpace: 0.4 });
-    y += 2;
-    doc.setDrawColor(...GOLD); doc.setLineWidth(0.5); doc.line(M, y, M + CW, y);
-    y += 5.5;
+    const label = 'SECTION ' + LETTERS[sectionNo++] + ' — ' + title.toUpperCase();
+    doc.setFillColor(...NAVY); doc.rect(M, y, CW, 6.2, 'F');
+    font('bold', 8.6, [255,255,255]); doc.text(label, M + 2.5, y + 4.3, { charSpace: 0.3 });
+    y += 6.2;
   }
-  function row(label, value){
-    font('bold', 9.5, INK);
-    const lines = doc.splitTextToSize(clean(value) || '—', CW - 72);
-    const h = (lines.length - 1) * 4.4 + 7;
+
+  /* A grid row: cells = [[label, value, spanCols]] across 2 columns; label cell shaded */
+  const LW = 34, VW = CW / 2 - LW;
+  function gridRow(cells){
+    font('normal', 8.8, INK);
+    const layout = []; let col = 0;
+    cells.forEach(c => {
+      const span = c[2] || 1;
+      const vw = span === 2 ? CW - LW : VW;
+      const lines = doc.splitTextToSize(clean(c[1]) || '', vw - 4);
+      font('bold', 6.8, MUTED);
+      const llines = doc.splitTextToSize(clean(c[0]).toUpperCase(), LW - 4);
+      font('normal', 8.8, INK);
+      layout.push({ x: M + col * (CW / 2), span, vw, lines, llines });
+      col += span;
+    });
+    const h = Math.max(7.2, ...layout.map(l => Math.max(l.lines.length * 4 + 3.4, l.llines.length * 3 + 3.6)));
     ensure(h);
-    font('normal', 9, MUTED); doc.text(clean(label), M, y);
-    font('bold', 9.5, INK); doc.text(lines, M + CW, y, { align:'right', lineHeightFactor: 1.3 });
-    y += (lines.length - 1) * 4.4 + 2.2;
-    doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.line(M, y, M + CW, y);
-    y += 4.1;
+    layout.forEach(l => {
+      doc.setFillColor(...SHADE); doc.rect(l.x, y, LW, h, 'F');
+      doc.setDrawColor(...GRID); doc.setLineWidth(0.25);
+      doc.rect(l.x, y, LW, h); doc.rect(l.x + LW, y, l.vw, h);
+      font('bold', 6.8, MUTED); doc.text(l.llines, l.x + 2, y + 4.4, { lineHeightFactor: 1.15 });
+      font('normal', 8.8, INK); doc.text(l.lines, l.x + LW + 2, y + 4.8, { lineHeightFactor: 1.3 });
+    });
+    y += h;
   }
-  function checkLine(text, ticked){
-    font('bold', 9, NAVY);
-    const lines = doc.splitTextToSize(clean(text), CW - 8);
-    ensure(lines.length * 4.4 + 3);
-    doc.setDrawColor(...NAVY); doc.setLineWidth(0.35); doc.rect(M, y - 3.2, 3.6, 3.6);
-    if(ticked){ doc.setLineWidth(0.6); doc.line(M + 0.7, y - 1.4, M + 1.5, y - 0.3); doc.line(M + 1.5, y - 0.3, M + 3.1, y - 2.6); }
-    doc.text(lines, M + 6, y, { lineHeightFactor: 1.3 });
-    y += lines.length * 4.4 + 2;
+  function tickBox(x, yy, on){
+    doc.setDrawColor(...INK); doc.setLineWidth(0.3); doc.rect(x, yy, 3.4, 3.4);
+    if(on){ doc.setLineWidth(0.55); doc.line(x + 0.6, yy + 1.8, x + 1.4, yy + 2.8); doc.line(x + 1.4, yy + 2.8, x + 2.9, yy + 0.6); }
   }
-  function paragraph(text){
-    font('normal', 8.6, INK);
-    const lines = doc.splitTextToSize(clean(text), CW);
-    lines.forEach(l => { ensure(4.2); doc.text(l, M, y); y += 4.1; });
-    y += 2;
+  function choiceRow(label, options, chosen){
+    ensure(7.2);
+    doc.setFillColor(...SHADE); doc.rect(M, y, LW, 7.2, 'F');
+    doc.setDrawColor(...GRID); doc.setLineWidth(0.25); doc.rect(M, y, LW, 7.2); doc.rect(M + LW, y, CW - LW, 7.2);
+    font('bold', 6.8, MUTED); doc.text(label.toUpperCase(), M + 2, y + 4.4);
+    let x = M + LW + 3;
+    options.forEach(o => {
+      tickBox(x, y + 1.9, clean(chosen).toLowerCase() === o.toLowerCase());
+      font('normal', 8.4, INK); doc.text(o, x + 5, y + 4.6);
+      x += doc.getTextWidth(o) + 13;
+    });
+    y += 7.2;
   }
-  function picture(img, maxW, maxH){
-    if(!img) return;
-    const k = Math.min(maxW / img.w, maxH / img.h);
-    const w = img.w * k, h = img.h * k;
-    ensure(h + 6);
-    doc.addImage(img.data, 'JPEG', M, y, w, h);
-    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.rect(M, y, w, h);
-    y += h + 6;
-  }
+  const gap = (h) => { y += h || 4; };
 
   header();
 
-  /* Summary card: who, how much, photo */
-  const cardH = 44;
-  doc.setFillColor(...PAPER); doc.setDrawColor(...LINE); doc.setLineWidth(0.3);
-  doc.roundedRect(M, y - 4, CW, cardH, 2, 2, 'FD');
-  const photoW = 30, photoH = 36, px = M + CW - photoW - 4, py = y;
-  if(photo){
-    const k = Math.min(photoW / photo.w, photoH / photo.h);
-    const iw = photo.w * k, ih = photo.h * k, ix = px + (photoW - iw)/2, iy = py + (photoH - ih)/2;
-    doc.addImage(photo.data, 'JPEG', ix, iy, iw, ih);
-    doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.rect(ix, iy, iw, ih);
-  } else {
-    doc.setDrawColor(...LINE); doc.rect(px, py, photoW, photoH);
-    font('normal', 7, MUTED); doc.text('No photo', px + photoW/2, py + photoH/2, { align:'center' });
+  /* A — Personal */
+  section('Personal Details');
+  gridRow([['Surname', val('surname')], ['First name(s)', [val('firstName'), val('middleName')].filter(Boolean).join(' ')]]);
+  gridRow([['Date of birth', formatDateLong(val('dob'))], ['National ID / Voter ID', val('nationalId')]]);
+  choiceRow('Gender', ['Male', 'Female', 'Prefer not to say'], val('gender'));
+  gridRow([['Mobile number', val('phone')], ['WhatsApp number', val('whatsapp') || val('phone')]]);
+  gridRow([['Residential address', val('address'), 2]]);
+  gridRow([['Digital address (GPS)', val('gpsAddress'), 2]]);
+  gap();
+
+  /* B — Employment */
+  section('Employment & Income');
+  gridRow([['Employment status', val('employmentStatus')], ['Employer / business', val('employerName')]]);
+  gridRow([['Monthly income', money(val('monthlyIncome'))], ['Other running loans', val('existingLoans')]]);
+  gap();
+
+  /* C — Next of kin */
+  section('Next of Kin');
+  gridRow([['Full name', val('kinName')], ['Relationship', val('kinRelationship')]]);
+  gridRow([['Mobile number', val('kinPhone')], ['', '']]);
+  gap();
+
+  /* D — Loan */
+  section('Loan Details');
+  gridRow([['Amount requested', money(val('loanAmount'))], ['Repayment period', val('repaymentPeriod')]]);
+  gridRow([['Interest charge', interest ? money(interest) + (rate ? '  (' + rate + ')' : '') : ''], ['Total amount repayable', money(val('repaymentAmount'))]]);
+  gridRow([['Purpose of loan', val('loanPurpose'), 2]]);
+  choiceRow('Disbursement method', ['Cash', 'Mobile Money', 'Bank Transfer'], val('disbursementMethod'));
+  if(val('disbursementMethod') && val('disbursementMethod') !== 'Cash') gridRow([['Payout account', payoutSummary(), 2]]);
+  gap();
+
+  /* E — Collateral */
+  section('Collateral / Security');
+  gridRow([['Description of item', val('collateralDescription'), 2]]);
+  gridRow([['Estimated value', money(val('collateralValue'))], ['Grace period before sale', (val('gracePeriodDays') || '7') + ' days']]);
+  if(collateral){
+    ensure(55);
+    doc.setFillColor(...SHADE); doc.rect(M, y, LW, 44, 'F');
+    doc.setDrawColor(...GRID); doc.setLineWidth(0.25); doc.rect(M, y, LW, 44); doc.rect(M + LW, y, CW - LW, 44);
+    font('bold', 6.8, MUTED); doc.text('PHOTO OF ITEM', M + 2, y + 4.4);
+    fitImage(collateral, M + LW + 2, y + 2, 70, 40);
+    y += 44;
   }
-  font('normal', 8, MUTED); doc.text('APPLICANT', M + 5, y + 2, { charSpace: 0.6 });
-  font('bold', 15, NAVY); doc.text(doc.splitTextToSize(fullName || '—', CW - photoW - 16)[0], M + 5, y + 9);
-  font('normal', 9, INK); doc.text('Phone: ' + (val('phone') || '—'), M + 5, y + 15);
-  const stats = [
-    ['Amount', 'GHS ' + (val('loanAmount') ? Number(val('loanAmount')).toLocaleString() : '—')],
-    ['Period', val('repaymentPeriod') || '—'],
-    ['Total to repay', 'GHS ' + (val('repaymentAmount') ? Number(val('repaymentAmount')).toLocaleString() : '—')]
-  ];
-  const sw = (CW - photoW - 14) / 3;
-  stats.forEach((s, i) => {
-    const sx = M + 5 + i * sw;
-    doc.setFillColor(255,255,255); doc.setDrawColor(...LINE); doc.roundedRect(sx, y + 19, sw - 3, 15, 1.5, 1.5, 'FD');
-    font('normal', 7.2, MUTED); doc.text(s[0].toUpperCase(), sx + 3, y + 24.5, { charSpace: 0.3 });
-    font('bold', 10.5, NAVY); doc.text(doc.splitTextToSize(s[1], sw - 8)[0], sx + 3, y + 30.5);
-  });
-  y += cardH + 4;
+  ensure(9);
+  tickBox(M, y + 2.2, val('ownershipConfirm') === 'Yes');
+  font('normal', 8.2, INK); doc.text('I confirm this item belongs to me and is not stolen, pledged, or owned by someone else.', M + 5.5, y + 5);
+  y += 8;
+  gap(2);
 
-  /* Every section shown on the review screen, in the same order */
-  let collateralDrawn = false;
-  Array.from(reviewBody.children).forEach(el => {
-    if(el.classList.contains('review-section-label')){ section(el.textContent); return; }
-    if(el.classList.contains('review-row')){
-      const k = el.querySelector('.k'), v = el.querySelector('.v');
-      row(k ? k.textContent : '', v ? v.textContent : '');
-      return;
-    }
-    if(el.classList.contains('review-declaration')){ paragraph(el.textContent); return; }
-    if(el.classList.contains('review-declaration-check')){
-      checkLine(el.textContent, !el.textContent.includes('☐'));
-      return;
-    }
-    const img = el.querySelector && el.querySelector('img');
-    if(img && img.alt === 'Collateral photo' && !collateralDrawn){ picture(collateral, 70, 50); collateralDrawn = true; }
-  });
+  /* F — Declaration */
+  section('Declaration by Applicant');
+  font('normal', 8.2, INK);
+  const decl = doc.splitTextToSize(DECLARATION_TEXT, CW - 6);
+  const dh = decl.length * 3.7 + 5;
+  ensure(dh + 9);
+  doc.setFillColor(...PALE); doc.setDrawColor(...GRID); doc.setLineWidth(0.25); doc.rect(M, y, CW, dh, 'FD');
+  doc.text(decl, M + 3, y + 4.6, { lineHeightFactor: 1.3 });
+  y += dh + 2;
+  const agreed = !!document.querySelector('[name="agree"]') && document.querySelector('[name="agree"]').checked;
+  tickBox(M, y + 1.4, agreed);
+  font('bold', 8.2, NAVY); doc.text('I have read and agree to the declaration above, including the sale of my collateral if I default.', M + 5.5, y + 4.2);
+  y += 9;
 
-  /* Office box */
-  ensure(60);
-  y += 4;
-  const boxTop = y - 4, boxH = 54;
-  doc.setFillColor(...PAPER); doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.rect(M, boxTop, CW, boxH, 'FD');
-  font('bold', 9, NAVY); doc.text('FOR OFFICE USE ONLY', M + 5, y + 1.5, { charSpace: 0.4 });
-  const office = [
-    ['Loan ID', currentRef || ''],
-    ['Approved Amount (GHS)', document.getElementById('officeApprovedAmount').textContent],
-    ['Disbursement Date', document.getElementById('officeDisbDate').textContent],
-    ['Due Date', document.getElementById('officeDueDate').textContent],
-    ['Officer Name', 'Annor Sampson'],
-    ['Officer Signature', '']
-  ];
-  const colW = (CW - 15) / 2;
-  office.forEach((f, i) => {
-    const ox = M + 5 + (i % 2) * (colW + 5), oy = y + 9 + Math.floor(i / 2) * 11;
-    font('normal', 7.4, MUTED); doc.text(f[0], ox, oy);
-    font('bold', 9.5, INK); doc.text(clean(f[1]), ox, oy + 4.6);
-    doc.setDrawColor(...INK); doc.setLineWidth(0.25); doc.line(ox, oy + 5.8, ox + colW, oy + 5.8);
-  });
-  font('italic', 7, MUTED);
-  doc.text(doc.splitTextToSize('Loan ID is pre-filled with the reference number. Approved Amount is pre-filled with the amount requested. Dates assume disbursement on the signing date. Cross out and write the correct values by hand if any differ.', CW - 10), M + 5, boxTop + boxH - 7, { lineHeightFactor: 1.25 });
-  y = boxTop + boxH + 6;
-
-  /* Signatures (keep heading and lines together) */
-  ensure(46);
+  /* G — Signatures */
+  ensure(44);
   section('Signatures');
-  const half = (CW - 10) / 2, top = y;
-  [['BORROWER', sig, val('signDate') ? formatDateLong(val('signDate')) : ''], ['LENDER — GENXCHOICE QUICK LOAN', null, '']].forEach((b, i) => {
-    const bx = M + i * (half + 10);
-    font('bold', 8, MUTED); doc.text(b[0], bx, top, { charSpace: 0.3 });
-    if(b[1]){
-      const k = Math.min((half - 10) / b[1].w, 16 / b[1].h);
-      doc.addImage(b[1].data, 'JPEG', bx, top + 3, b[1].w * k, b[1].h * k);
-    }
-    doc.setDrawColor(...INK); doc.setLineWidth(0.3); doc.line(bx, top + 21, bx + half, top + 21);
-    font('normal', 7.8, MUTED);
-    doc.text('Signature', bx, top + 25);
-    doc.text('Date: ' + (b[2] || '______________'), bx + half, top + 25, { align:'right' });
+  const half = CW / 2, sh = 30;
+  [['APPLICANT', sig, val('signDate') ? formatDateLong(val('signDate')) : '', fullName],
+   ['FOR GENXCHOICE QUICK LOAN', null, '', '']].forEach((b, i) => {
+    const bx = M + i * half;
+    doc.setDrawColor(...GRID); doc.setLineWidth(0.25); doc.rect(bx, y, half, sh);
+    font('bold', 6.8, MUTED); doc.text(b[0], bx + 2, y + 4.2);
+    if(b[1]) fitImage(b[1], bx + 4, y + 5.5, half - 30, 12);
+    doc.setDrawColor(...INK); doc.setLineWidth(0.3); doc.line(bx + 4, y + 19, bx + half - 4, y + 19);
+    font('normal', 7, MUTED);
+    doc.text('Signature', bx + 4, y + 22);
+    doc.text('Name: ' + (b[3] || '_______________________'), bx + 4, y + 26.5);
+    doc.text('Date: ' + (b[2] || '____________'), bx + half - 4, y + 26.5, { align:'right' });
   });
-  y = top + 30;
+  y += sh + 5;
+
+  /* Official use */
+  ensure(58);
+  const oy = y;
+  doc.setDrawColor(...NAVY); doc.setLineWidth(0.6); doc.setLineDashPattern([1.2, 1], 0);
+  doc.rect(M, oy, CW, 54);
+  doc.setLineDashPattern([], 0);
+  font('bold', 8.6, NAVY); doc.text('FOR OFFICIAL USE ONLY', M + 3, oy + 5.5, { charSpace: 0.4 });
+  font('normal', 8, INK);
+  let dx = M + 60;
+  ['Approved', 'Declined', 'Referred'].forEach(o => { tickBox(dx, oy + 2.8, false); doc.text(o, dx + 5, oy + 5.6); dx += doc.getTextWidth(o) + 13; });
+  const dueStr = document.getElementById('officeDueDate').textContent;
+  const fields = [
+    ['Loan account no.', currentRef || ''], ['Approved amount', money(val('loanAmount'))],
+    ['Disbursement date', formatDateLong(val('signDate') || todayStr)], ['Due date', dueStr],
+    ['Loan officer', 'Annor Sampson'], ['Officer signature', '']
+  ];
+  const fw = (CW - 50) / 2;
+  fields.forEach((f, i) => {
+    const fx = M + 3 + (i % 2) * (fw + 4), fy = oy + 12 + Math.floor(i / 2) * 10.5;
+    font('normal', 6.6, MUTED); doc.text(f[0].toUpperCase(), fx, fy);
+    font('bold', 8.8, INK); doc.text(clean(f[1]), fx, fy + 4.3);
+    doc.setDrawColor(...GRID); doc.setLineWidth(0.25); doc.line(fx, fy + 5.5, fx + fw - 2, fy + 5.5);
+  });
+  // Stamp box
+  const stx = M + CW - 44, sty = oy + 9;
+  doc.setDrawColor(...GRID); doc.setLineWidth(0.25); doc.rect(stx, sty, 40, 32);
+  font('normal', 6.6, MUTED); doc.text('OFFICIAL STAMP', stx + 20, sty + 17, { align:'center' });
+  font('italic', 6.4, MUTED);
+  doc.text(doc.splitTextToSize('Pre-filled values assume disbursement on the application date. Cross out and correct by hand if they differ.', CW - 6), M + 3, oy + 49.5);
+  y = oy + 58;
 
   /* Footer on every page */
   const pages = doc.getNumberOfPages();
   for(let p = 1; p <= pages; p++){
     doc.setPage(p);
-    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, H - 13, W - M, H - 13);
-    font('normal', 7.2, MUTED);
-    doc.text('GENXCHOICE QUICK LOAN · Confidential, for loan assessment only · WhatsApp +' + CONFIG.whatsappNumber, M, H - 8.5);
-    doc.text('Page ' + p + ' of ' + pages, W - M, H - 8.5, { align:'right' });
+    doc.setDrawColor(...GRID); doc.setLineWidth(0.25); doc.line(M, H - 12, W - M, H - 12);
+    font('normal', 6.8, MUTED);
+    doc.text('Form GXC-LAF-01 · Confidential: for loan assessment only · Application No. ' + (currentRef || ''), M, H - 7.5);
+    doc.text('Page ' + p + ' of ' + pages, W - M, H - 7.5, { align:'right' });
   }
   return doc.output('blob');
 }
