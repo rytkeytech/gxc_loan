@@ -1285,7 +1285,7 @@
 
       <div class="review-actions">
         <button id="sendBtn" type="button" style="flex-basis:100%;">Submit Application</button>
-        <button id="whatsappBtn" type="button" style="flex-basis:100%;">Send to GENXCHOICE on WhatsApp</button>
+        <button id="whatsappBtn" type="button" style="flex-basis:100%;">Send PDF on WhatsApp</button>
         <button id="editBtn" type="button">Edit</button>
         <button id="printBtn" type="button">Save as PDF</button>
       </div>
@@ -1471,6 +1471,8 @@ form.addEventListener('submit', function(e){
   document.getElementById('hero').style.display = 'none';
   form.style.display = 'none';
   reviewScreen.style.display = 'block';
+  pdfShareArmed = false;
+  preparePdf();
   document.getElementById('stepCounter').textContent = 'Review';
   document.getElementById('progressFill').style.width = '100%';
   window.scrollTo({top:0, behavior:'smooth'});
@@ -1488,6 +1490,7 @@ form.addEventListener('change', function(e){
 
 document.getElementById('editBtn').addEventListener('click', function(){
   draftLocked = false;
+  pdfPromise = null; pdfBlob = null;
   form.style.display='block';
   reviewScreen.style.display='none';
   showStep(0);
@@ -1559,45 +1562,307 @@ function makeRef(){
   return 'GXC-' + t.getFullYear() + String(t.getMonth()+1).padStart(2,'0') + String(t.getDate()).padStart(2,'0') + '-' + String(Math.floor(1000 + Math.random()*9000));
 }
 
-/* ---------- Send on WhatsApp ---------- */
-document.getElementById('whatsappBtn').addEventListener('click', function(){
+/* ---------- Application PDF (drawn directly, no print screen) ---------- */
+let pdfLibPromise = null;
+function loadPdfLib(){
+  if(window.jspdf) return Promise.resolve(window.jspdf);
+  if(pdfLibPromise) return pdfLibPromise;
+  pdfLibPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'jspdf.umd.min.js';
+    s.onload = () => window.jspdf ? resolve(window.jspdf) : reject(new Error('PDF library missing'));
+    s.onerror = () => { pdfLibPromise = null; reject(new Error('Could not load PDF library')); };
+    document.head.appendChild(s);
+  });
+  return pdfLibPromise;
+}
+
+function blobToDataUrl(blob){
+  return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.onerror = () => r(null); fr.readAsDataURL(blob); });
+}
+function imageSize(src){
+  return new Promise(r => { const i = new Image(); i.onload = () => r({w:i.naturalWidth, h:i.naturalHeight}); i.onerror = () => r(null); i.src = src; });
+}
+/* Re-encode any picture as JPEG on white so the PDF always accepts it */
+async function pdfImage(src){
+  if(!src) return null;
+  const size = await imageSize(src);
+  if(!size || !size.w) return null;
+  const max = 900, k = Math.min(1, max / Math.max(size.w, size.h));
+  const c = document.createElement('canvas');
+  c.width = Math.round(size.w * k); c.height = Math.round(size.h * k);
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  const img = new Image();
+  await new Promise(r => { img.onload = r; img.onerror = r; img.src = src; });
+  x.drawImage(img, 0, 0, c.width, c.height);
+  return { data: c.toDataURL('image/jpeg', 0.85), w: c.width, h: c.height };
+}
+function shownImageSrc(el){
+  return (el && el.style.display !== 'none' && el.src && el.src.startsWith('data:')) ? el.src : '';
+}
+function pdfFileName(){
+  return 'GENXCHOICE-Loan-Application-' + (currentRef || 'draft') + '.pdf';
+}
+
+async function buildApplicationPdf(){
+  const { jsPDF } = await loadPdfLib();
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const W = 210, H = 297, M = 16, CW = W - 2*M, BOTTOM = H - 20;
+  const NAVY = [11,31,58], GOLD = [201,162,39], INK = [28,32,40], MUTED = [104,111,124], LINE = [226,222,211], PAPER = [250,249,245];
+
   const fullName = [val('firstName'), val('middleName'), val('surname')].filter(Boolean).join(' ');
-  if(submitted){
-    const short = 'Hello GENXCHOICE QUICK LOAN, I have submitted a loan application.\nRef: ' + currentRef + '\nName: ' + fullName + '\nAmount: GHS ' + val('loanAmount');
-    window.open('https://wa.me/' + CONFIG.whatsappNumber + '?text=' + encodeURIComponent(short), '_blank');
+  const t = new Date();
+  const todayStr = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+
+  let logo = null;
+  try { logo = await pdfImage(await blobToDataUrl(await fetch('logo.png').then(r => r.blob()))); } catch(e) {}
+  const photo = await pdfImage(shownImageSrc(document.getElementById('photoPreview')));
+  const collateral = await pdfImage(shownImageSrc(document.getElementById('collateralPreview')));
+  const sig = await pdfImage(getSignatureDataUrl() || '');
+
+  let y = 0;
+  const font = (style, size, color) => { doc.setFont('helvetica', style); doc.setFontSize(size); doc.setTextColor(...color); };
+  const clean = s => String(s == null ? '' : s).replace(/[☐☑]/g, '').replace(/\s+/g, ' ').trim();
+
+  let firstPage = true;
+  function header(){
+    if(!firstPage){
+      doc.setFillColor(...NAVY); doc.rect(0, 0, W, 12, 'F');
+      doc.setFillColor(...GOLD); doc.rect(0, 12, W, 0.8, 'F');
+      font('bold', 9, [255,255,255]); doc.text('GENXCHOICE QUICK LOAN — Loan Application', M, 7.8);
+      font('normal', 8.5, [214,219,228]); doc.text('Ref: ' + (currentRef || ''), W - M, 7.8, { align:'right' });
+      y = 22; return;
+    }
+    firstPage = false;
+    doc.setFillColor(...NAVY); doc.rect(0, 0, W, 28, 'F');
+    doc.setFillColor(...GOLD); doc.rect(0, 28, W, 1.1, 'F');
+    let tx = M;
+    if(logo){
+      doc.setFillColor(255,255,255); doc.circle(M + 8, 14, 8, 'F');
+      const lw = 11, lh = lw * logo.h / logo.w;
+      doc.addImage(logo.data, 'JPEG', M + 8 - lw/2, 14 - lh/2, lw, lh);
+      tx = M + 21;
+    }
+    font('bold', 15, [255,255,255]); doc.text('GENXCHOICE QUICK LOAN', tx, 13.5);
+    font('normal', 8, GOLD); doc.text('LOAN APPLICATION', tx, 19.5, { charSpace: 0.8 });
+    font('bold', 9, [255,255,255]); doc.text('Ref: ' + (currentRef || ''), W - M, 12.5, { align:'right' });
+    font('normal', 8.5, [214,219,228]); doc.text(formatDateLong(todayStr), W - M, 18.5, { align:'right' });
+    y = 38;
+  }
+  function ensure(h){ if(y + h > BOTTOM){ doc.addPage(); header(); } }
+
+  function section(title){
+    ensure(16);
+    y += 3;
+    font('bold', 9.5, NAVY); doc.text(title.toUpperCase(), M, y, { charSpace: 0.4 });
+    y += 2;
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.5); doc.line(M, y, M + CW, y);
+    y += 5.5;
+  }
+  function row(label, value){
+    font('bold', 9.5, INK);
+    const lines = doc.splitTextToSize(clean(value) || '—', CW - 72);
+    const h = (lines.length - 1) * 4.4 + 7;
+    ensure(h);
+    font('normal', 9, MUTED); doc.text(clean(label), M, y);
+    font('bold', 9.5, INK); doc.text(lines, M + CW, y, { align:'right', lineHeightFactor: 1.3 });
+    y += (lines.length - 1) * 4.4 + 2.2;
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.line(M, y, M + CW, y);
+    y += 4.1;
+  }
+  function checkLine(text, ticked){
+    font('bold', 9, NAVY);
+    const lines = doc.splitTextToSize(clean(text), CW - 8);
+    ensure(lines.length * 4.4 + 3);
+    doc.setDrawColor(...NAVY); doc.setLineWidth(0.35); doc.rect(M, y - 3.2, 3.6, 3.6);
+    if(ticked){ doc.setLineWidth(0.6); doc.line(M + 0.7, y - 1.4, M + 1.5, y - 0.3); doc.line(M + 1.5, y - 0.3, M + 3.1, y - 2.6); }
+    doc.text(lines, M + 6, y, { lineHeightFactor: 1.3 });
+    y += lines.length * 4.4 + 2;
+  }
+  function paragraph(text){
+    font('normal', 8.6, INK);
+    const lines = doc.splitTextToSize(clean(text), CW);
+    lines.forEach(l => { ensure(4.2); doc.text(l, M, y); y += 4.1; });
+    y += 2;
+  }
+  function picture(img, maxW, maxH){
+    if(!img) return;
+    const k = Math.min(maxW / img.w, maxH / img.h);
+    const w = img.w * k, h = img.h * k;
+    ensure(h + 6);
+    doc.addImage(img.data, 'JPEG', M, y, w, h);
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.rect(M, y, w, h);
+    y += h + 6;
+  }
+
+  header();
+
+  /* Summary card: who, how much, photo */
+  const cardH = 44;
+  doc.setFillColor(...PAPER); doc.setDrawColor(...LINE); doc.setLineWidth(0.3);
+  doc.roundedRect(M, y - 4, CW, cardH, 2, 2, 'FD');
+  const photoW = 30, photoH = 36, px = M + CW - photoW - 4, py = y;
+  if(photo){
+    const k = Math.min(photoW / photo.w, photoH / photo.h);
+    const iw = photo.w * k, ih = photo.h * k, ix = px + (photoW - iw)/2, iy = py + (photoH - ih)/2;
+    doc.addImage(photo.data, 'JPEG', ix, iy, iw, ih);
+    doc.setDrawColor(...GOLD); doc.setLineWidth(0.8); doc.rect(ix, iy, iw, ih);
+  } else {
+    doc.setDrawColor(...LINE); doc.rect(px, py, photoW, photoH);
+    font('normal', 7, MUTED); doc.text('No photo', px + photoW/2, py + photoH/2, { align:'center' });
+  }
+  font('normal', 8, MUTED); doc.text('APPLICANT', M + 5, y + 2, { charSpace: 0.6 });
+  font('bold', 15, NAVY); doc.text(doc.splitTextToSize(fullName || '—', CW - photoW - 16)[0], M + 5, y + 9);
+  font('normal', 9, INK); doc.text('Phone: ' + (val('phone') || '—'), M + 5, y + 15);
+  const stats = [
+    ['Amount', 'GHS ' + (val('loanAmount') ? Number(val('loanAmount')).toLocaleString() : '—')],
+    ['Period', val('repaymentPeriod') || '—'],
+    ['Total to repay', 'GHS ' + (val('repaymentAmount') ? Number(val('repaymentAmount')).toLocaleString() : '—')]
+  ];
+  const sw = (CW - photoW - 14) / 3;
+  stats.forEach((s, i) => {
+    const sx = M + 5 + i * sw;
+    doc.setFillColor(255,255,255); doc.setDrawColor(...LINE); doc.roundedRect(sx, y + 19, sw - 3, 15, 1.5, 1.5, 'FD');
+    font('normal', 7.2, MUTED); doc.text(s[0].toUpperCase(), sx + 3, y + 24.5, { charSpace: 0.3 });
+    font('bold', 10.5, NAVY); doc.text(doc.splitTextToSize(s[1], sw - 8)[0], sx + 3, y + 30.5);
+  });
+  y += cardH + 4;
+
+  /* Every section shown on the review screen, in the same order */
+  let collateralDrawn = false;
+  Array.from(reviewBody.children).forEach(el => {
+    if(el.classList.contains('review-section-label')){ section(el.textContent); return; }
+    if(el.classList.contains('review-row')){
+      const k = el.querySelector('.k'), v = el.querySelector('.v');
+      row(k ? k.textContent : '', v ? v.textContent : '');
+      return;
+    }
+    if(el.classList.contains('review-declaration')){ paragraph(el.textContent); return; }
+    if(el.classList.contains('review-declaration-check')){
+      checkLine(el.textContent, !el.textContent.includes('☐'));
+      return;
+    }
+    const img = el.querySelector && el.querySelector('img');
+    if(img && img.alt === 'Collateral photo' && !collateralDrawn){ picture(collateral, 70, 50); collateralDrawn = true; }
+  });
+
+  /* Office box */
+  ensure(60);
+  y += 4;
+  const boxTop = y - 4, boxH = 54;
+  doc.setFillColor(...PAPER); doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.rect(M, boxTop, CW, boxH, 'FD');
+  font('bold', 9, NAVY); doc.text('FOR OFFICE USE ONLY', M + 5, y + 1.5, { charSpace: 0.4 });
+  const office = [
+    ['Loan ID', currentRef || ''],
+    ['Approved Amount (GHS)', document.getElementById('officeApprovedAmount').textContent],
+    ['Disbursement Date', document.getElementById('officeDisbDate').textContent],
+    ['Due Date', document.getElementById('officeDueDate').textContent],
+    ['Officer Name', 'Annor Sampson'],
+    ['Officer Signature', '']
+  ];
+  const colW = (CW - 15) / 2;
+  office.forEach((f, i) => {
+    const ox = M + 5 + (i % 2) * (colW + 5), oy = y + 9 + Math.floor(i / 2) * 11;
+    font('normal', 7.4, MUTED); doc.text(f[0], ox, oy);
+    font('bold', 9.5, INK); doc.text(clean(f[1]), ox, oy + 4.6);
+    doc.setDrawColor(...INK); doc.setLineWidth(0.25); doc.line(ox, oy + 5.8, ox + colW, oy + 5.8);
+  });
+  font('italic', 7, MUTED);
+  doc.text(doc.splitTextToSize('Loan ID is pre-filled with the reference number. Approved Amount is pre-filled with the amount requested. Dates assume disbursement on the signing date. Cross out and write the correct values by hand if any differ.', CW - 10), M + 5, boxTop + boxH - 7, { lineHeightFactor: 1.25 });
+  y = boxTop + boxH + 6;
+
+  /* Signatures (keep heading and lines together) */
+  ensure(46);
+  section('Signatures');
+  const half = (CW - 10) / 2, top = y;
+  [['BORROWER', sig, val('signDate') ? formatDateLong(val('signDate')) : ''], ['LENDER — GENXCHOICE QUICK LOAN', null, '']].forEach((b, i) => {
+    const bx = M + i * (half + 10);
+    font('bold', 8, MUTED); doc.text(b[0], bx, top, { charSpace: 0.3 });
+    if(b[1]){
+      const k = Math.min((half - 10) / b[1].w, 16 / b[1].h);
+      doc.addImage(b[1].data, 'JPEG', bx, top + 3, b[1].w * k, b[1].h * k);
+    }
+    doc.setDrawColor(...INK); doc.setLineWidth(0.3); doc.line(bx, top + 21, bx + half, top + 21);
+    font('normal', 7.8, MUTED);
+    doc.text('Signature', bx, top + 25);
+    doc.text('Date: ' + (b[2] || '______________'), bx + half, top + 25, { align:'right' });
+  });
+  y = top + 30;
+
+  /* Footer on every page */
+  const pages = doc.getNumberOfPages();
+  for(let p = 1; p <= pages; p++){
+    doc.setPage(p);
+    doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, H - 13, W - M, H - 13);
+    font('normal', 7.2, MUTED);
+    doc.text('GENXCHOICE QUICK LOAN · Confidential, for loan assessment only · WhatsApp +' + CONFIG.whatsappNumber, M, H - 8.5);
+    doc.text('Page ' + p + ' of ' + pages, W - M, H - 8.5, { align:'right' });
+  }
+  return doc.output('blob');
+}
+
+/* Build the PDF in the background as soon as the review screen opens,
+   so tapping the WhatsApp button can share it straight away. */
+let pdfPromise = null, pdfBlob = null;
+function preparePdf(){
+  pdfBlob = null;
+  const p = buildApplicationPdf();
+  pdfPromise = p;
+  p.then(b => { if(pdfPromise === p) pdfBlob = b; }).catch(() => { if(pdfPromise === p) pdfPromise = null; });
+  return p;
+}
+function getPdf(){ return pdfPromise || preparePdf(); }
+
+function downloadBlob(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* ---------- Send on WhatsApp (as a PDF) ---------- */
+let pdfShareArmed = false;
+document.getElementById('whatsappBtn').addEventListener('click', async function(){
+  const btn = this;
+  const fullName = [val('firstName'), val('middleName'), val('surname')].filter(Boolean).join(' ');
+  const caption = 'Hello GENXCHOICE QUICK LOAN, here is my loan application.\nRef: ' + currentRef + '\nName: ' + fullName + '\nAmount: GHS ' + val('loanAmount');
+  const openChat = extra => window.open('https://wa.me/' + CONFIG.whatsappNumber + '?text=' + encodeURIComponent(caption + (extra || '')), '_blank');
+
+  let blob = pdfBlob;
+  if(!blob){
+    btn.disabled = true;
+    btn.textContent = 'Preparing PDF…';
+    try { blob = await getPdf(); }
+    catch(err){ btn.disabled = false; setupSendButtons(); openChat('\n\n(I could not attach the PDF. Please ask me for it.)'); return; }
+    btn.disabled = false;
+    setupSendButtons();
+  }
+
+  const file = new File([blob], pdfFileName(), { type:'application/pdf' });
+  const canShare = navigator.canShare && navigator.canShare({ files:[file] });
+
+  if(canShare){
+    // Sharing must follow a tap. If preparing took a while, ask for one more tap.
+    try {
+      await navigator.share({ files:[file], title:'Loan application ' + currentRef, text: caption });
+      pdfShareArmed = false;
+      clearDraft();
+    } catch(err){
+      if(err && err.name === 'AbortError') return;          // they closed the share menu
+      if(!pdfShareArmed){ pdfShareArmed = true; btn.textContent = 'PDF ready — tap to send'; return; }
+      downloadBlob(blob, pdfFileName());
+      openChat('\n\n(I have attached the PDF of my application.)');
+      clearDraft();
+    }
     return;
   }
-  const lines = [
-    '*GENXCHOICE QUICK LOAN — New Application*',
-    'Ref: ' + currentRef,
-    '',
-    '*Applicant*',
-    'Name: ' + fullName,
-    'Phone: ' + val('phone') + (val('whatsapp') ? ' (WhatsApp: ' + val('whatsapp') + ')' : ''),
-    'ID: ' + val('nationalId'),
-    'Address: ' + val('address').replace(/\s+/g,' ') + (val('gpsAddress') ? ' (' + val('gpsAddress') + ')' : ''),
-    'Work: ' + val('employmentStatus') + (val('employerName') ? ' — ' + val('employerName') : ''),
-    'Monthly income: GHS ' + val('monthlyIncome'),
-    'Other loans: ' + (val('existingLoans') || 'Not stated'),
-    '',
-    '*Next of kin*',
-    val('kinName') + ' (' + val('kinRelationship') + ') — ' + val('kinPhone'),
-    '',
-    '*Loan*',
-    'Amount: GHS ' + val('loanAmount'),
-    'Period: ' + val('repaymentPeriod'),
-    'Total to repay: GHS ' + val('repaymentAmount'),
-    'Purpose: ' + val('loanPurpose').replace(/\s+/g,' '),
-    'Payout: ' + payoutSummary(),
-    '',
-    '*Collateral*',
-    val('collateralDescription').replace(/\s+/g,' '),
-    'Estimated value: GHS ' + val('collateralValue'),
-    '',
-    'I agree to the declaration and terms. I will attach the signed PDF in this chat.'
-  ];
-  const url = 'https://wa.me/' + CONFIG.whatsappNumber + '?text=' + encodeURIComponent(lines.join('\n'));
-  window.open(url, '_blank');
+
+  // Computers and older phones: save the PDF, then open the GENXCHOICE chat to attach it
+  downloadBlob(blob, pdfFileName());
+  openChat('\n\n(Attaching the PDF of my application.)');
+  clearDraft();
 });
 
 /* ---------- Submit to the Google Sheet ---------- */
@@ -1653,13 +1918,13 @@ function setupSendButtons(){
   if(!CONFIG.sheetUrl){
     sendBtn.style.display = 'none';
     waBtn.style.display = '';
-    document.getElementById('sendNote').innerHTML = 'Step 1: tap <strong>Send on WhatsApp</strong> to send your details.<br>Step 2: tap <strong>Save as PDF</strong>, then attach the PDF in the same WhatsApp chat so we receive your photo and signature.';
+    document.getElementById('sendNote').innerHTML = 'Tap <strong>Send PDF on WhatsApp</strong>, choose <strong>WhatsApp</strong>, then pick <strong>GENXCHOICE</strong> (+' + CONFIG.whatsappNumber + ') and send.';
     return;
   }
   const failed = document.getElementById('submitStatus').classList.contains('err');
   sendBtn.style.display = submitted ? 'none' : '';
   waBtn.style.display = (submitted || failed) ? '' : 'none';
-  waBtn.textContent = submitted ? 'Message us on WhatsApp' : 'Send on WhatsApp instead';
+  waBtn.textContent = submitted ? 'Send PDF copy on WhatsApp' : 'Send PDF on WhatsApp instead';
 }
 
 document.getElementById('sendBtn').addEventListener('click', async function(){
@@ -1698,8 +1963,12 @@ function payoutSummary(){
   return m;
 }
 
-document.getElementById('printBtn').addEventListener('click', function(){
-  window.print();
+document.getElementById('printBtn').addEventListener('click', async function(){
+  const btn = this, label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparing PDF…';
+  try { downloadBlob(await getPdf(), pdfFileName()); }
+  catch(err){ window.print(); }
+  finally { btn.disabled = false; btn.textContent = label; }
 });
 
 const REPAYMENT_RATES = {
@@ -2132,8 +2401,6 @@ updatePayoutFields();
 updateSigMethodUI();
 autoCalculateRepayment();
 
-/* Once sent, the next visit starts fresh */
-document.getElementById('whatsappBtn').addEventListener('click', clearDraft);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

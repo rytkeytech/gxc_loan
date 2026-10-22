@@ -1,11 +1,12 @@
-const CACHE_NAME = 'genx-loan-form-v9';
+const CACHE_NAME = 'genx-loan-form-v10';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './logo.png'
+  './logo.png',
+  './jspdf.umd.min.js'
 ];
 
 self.addEventListener('install', (event) => {
