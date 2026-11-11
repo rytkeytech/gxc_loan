@@ -857,6 +857,25 @@
   }
   .terms-cta button{width:100%; max-width:528px; min-height:54px; border-radius:14px; border:none;
     background:var(--gold); color:var(--navy); font-family:inherit; font-size:1rem; font-weight:800; cursor:pointer;}
+  .calc-card h2{margin-bottom:4px;}
+  .calc-sub{color:var(--text-2) !important; margin-bottom:16px !important;}
+  .calc-label{display:block; font-size:.88rem; font-weight:700; color:var(--ink); margin:0 0 8px;}
+  #calcAmount{width:100%; min-height:56px; padding:12px 14px; font-size:1.25rem; font-weight:800; color:var(--navy);
+    font-family:inherit; background:var(--field); border:1.5px solid var(--field-line); border-radius:12px; font-variant-numeric:tabular-nums;}
+  #calcAmount:focus{outline:none; border-color:var(--navy); background:#fff;}
+  .calc-chips{display:flex; gap:8px; margin:10px 0 0; flex-wrap:wrap;}
+  .calc-chips button, .calc-periods button{
+    flex:1 1 56px; min-height:44px; border-radius:10px; border:1.5px solid var(--field-line); background:#fff; color:var(--navy);
+    font-family:inherit; font-weight:700; font-size:.88rem; cursor:pointer;}
+  .calc-chips button.on, .calc-periods button[aria-checked="true"]{border-color:var(--navy); background:var(--navy); color:#fff;}
+  .calc-chips button:focus-visible, .calc-periods button:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .calc-error{min-height:1.2em; margin:6px 0 10px !important; font-size:.84rem !important; font-weight:700; color:var(--danger) !important;}
+  .calc-periods{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:16px;}
+  .calc-periods button{flex:none;}
+  .calc-result{margin:0 0 4px; grid-template-columns:1fr !important; gap:10px !important;}
+  .calc-result .ls-item{flex-direction:row; justify-content:space-between; align-items:baseline; gap:12px;}
+  .calc-result .ls-v{text-align:right; font-variant-numeric:tabular-nums;}
+  .calc-result .ls-item:nth-child(2) .ls-v{font-size:1.25rem; color:var(--gold-soft);}
   .terms-official{border:1.5px solid var(--gold);}
   .terms-text{text-align:left; background:var(--field); border:1.5px solid var(--field-line); border-radius:12px; padding:14px; font-size:.9rem !important; line-height:1.65 !important;}
   .terms-agree{display:flex; align-items:flex-start; gap:10px; margin-top:14px; padding:14px; border-radius:12px;
@@ -928,6 +947,31 @@
       <span>Kept confidential</span>
     </div>
   </section>
+
+    <section class="terms-card calc-card" aria-labelledby="calcTitle">
+      <h2 id="calcTitle">Loan calculator</h2>
+      <p class="calc-sub">See what a loan will cost before you apply.</p>
+
+      <label class="calc-label" for="calcAmount">How much do you need? (GHS)</label>
+      <input type="number" id="calcAmount" inputmode="numeric" min="100" max="5000" step="1" value="1000" aria-describedby="calcError">
+      <div class="calc-chips" role="group" aria-label="Quick amounts">
+        <button type="button" data-amount="500">500</button>
+        <button type="button" data-amount="1000">1,000</button>
+        <button type="button" data-amount="2000">2,000</button>
+        <button type="button" data-amount="5000">5,000</button>
+      </div>
+      <p class="calc-error" id="calcError" role="status" aria-live="polite"></p>
+
+      <span class="calc-label" id="calcPeriodLabel">Pay back in</span>
+      <div class="calc-periods" id="calcPeriods" role="radiogroup" aria-labelledby="calcPeriodLabel"></div>
+
+      <div class="loan-summary calc-result" aria-live="polite">
+        <div class="ls-item"><span class="ls-k">Interest</span><span class="ls-v" id="calcInterest">—</span></div>
+        <div class="ls-item"><span class="ls-k">Total to repay</span><span class="ls-v" id="calcTotal">—</span></div>
+        <div class="ls-item"><span class="ls-k">Due by (est.)</span><span class="ls-v" id="calcDue">—</span></div>
+      </div>
+      <p class="rate-note">The due date assumes the loan is paid out today. Your choice here is carried into the application form.</p>
+    </section>
 
     <section class="terms-card">
       <h2><span class="n">1</span>What you can borrow</h2>
@@ -2634,7 +2678,7 @@ function setTab(name, scroll){
   document.body.classList.toggle('tab-terms', !apply);
   document.getElementById('tabApply').setAttribute('aria-selected', apply ? 'true' : 'false');
   document.getElementById('tabTerms').setAttribute('aria-selected', apply ? 'false' : 'true');
-  if(apply) showStep(stepIndex, false);          // re-measures the signature pad if it is on screen
+  if(apply){ carryCalcToForm(); showStep(stepIndex, false); }   // showStep re-measures the signature pad if it is on screen
   if(scroll !== false) window.scrollTo({top:0, behavior:'smooth'});
 }
 /* Apply stays locked until the terms are agreed to on this device */
@@ -2675,6 +2719,49 @@ tabApplyBtn.addEventListener('click', () => { if(termsAccepted) setTab('apply');
 termsContinueBtn.addEventListener('click', () => { if(!termsAgree.checked && !termsAccepted) return nudgeTerms(); acceptTerms(); setTab('apply'); });
 termsAgree.checked = termsAccepted;
 updateTermsLock();
+
+/* ---------- Loan calculator (Terms tab) ---------- */
+const calcAmount = document.getElementById('calcAmount');
+const calcPeriods = document.getElementById('calcPeriods');
+let calcPeriod = '1 month', calcTouched = false;
+calcAmount.min = CONFIG.minLoan; calcAmount.max = CONFIG.maxLoan;
+calcPeriods.innerHTML = Object.keys(REPAYMENT_RATES).map(p =>
+  '<button type="button" role="radio" data-period="' + p + '" aria-checked="' + (p === calcPeriod) + '">' + p + '</button>').join('');
+
+function updateCalc(){
+  const amount = parseFloat(calcAmount.value);
+  const ok = !isNaN(amount) && amount >= CONFIG.minLoan && amount <= CONFIG.maxLoan;
+  const rate = REPAYMENT_RATES[calcPeriod];
+  document.querySelectorAll('.calc-chips button').forEach(b => b.classList.toggle('on', b.dataset.amount === calcAmount.value));
+  calcPeriods.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', b.dataset.period === calcPeriod ? 'true' : 'false'));
+  document.getElementById('calcError').textContent = (ok || calcAmount.value === '') ? '' :
+    'Enter an amount from GHS ' + CONFIG.minLoan.toLocaleString() + ' to GHS ' + CONFIG.maxLoan.toLocaleString() + '.';
+  if(ok){
+    const interest = Math.round(amount * rate * 100) / 100;
+    document.getElementById('calcInterest').textContent = money(interest) + ' (' + Math.round(rate * 100) + '%)';
+    document.getElementById('calcTotal').textContent = money(Math.round((amount + interest) * 100) / 100);
+    document.getElementById('calcDue').textContent = formatDateLong(addMonthsISO(todayISO(), parseInt(calcPeriod, 10)));
+  } else {
+    ['calcInterest', 'calcTotal', 'calcDue'].forEach(id => document.getElementById(id).textContent = '—');
+  }
+  return ok;
+}
+calcAmount.addEventListener('input', () => { calcTouched = true; updateCalc(); });
+document.querySelectorAll('.calc-chips button').forEach(b => b.addEventListener('click', () => { calcAmount.value = b.dataset.amount; calcTouched = true; updateCalc(); }));
+calcPeriods.addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  calcPeriod = b.dataset.period; calcTouched = true; updateCalc();
+});
+/* Carry the calculator choice into the form, but never over something already typed there */
+function carryCalcToForm(){
+  if(!calcTouched || !updateCalc()) return;
+  if(loanAmountInput.value || repaymentPeriodSelect.value) return;
+  loanAmountInput.value = calcAmount.value;
+  repaymentPeriodSelect.value = calcPeriod;
+  autoCalculateRepayment();
+  saveDraft();
+}
+updateCalc();
 
 /* Interest table comes from the same rates the form uses */
 document.getElementById('rateRows').innerHTML = Object.keys(REPAYMENT_RATES).map(period => {
