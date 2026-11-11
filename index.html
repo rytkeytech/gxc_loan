@@ -2533,7 +2533,8 @@ function restoreDraft(){
       else if(el.type === 'checkbox'){ el.checked = !!data[name]; }
       else { el.value = data[name]; }
     });
-    if(data[name] && name !== 'sigMethod') restored = true;
+    // The signing date and signing method are filled in automatically, so they don't count as the customer's work
+    if(data[name] && name !== 'sigMethod' && name !== 'signDate') restored = true;
   });
   return restored;
 }
@@ -2779,6 +2780,14 @@ if(restoreDraft()){
   try { startStep = parseInt(localStorage.getItem(STEP_KEY) || '0', 10) || 0; } catch(e) {}
 }
 showStep(startStep, false);
+// The agreement only lasts for one application. With no unfinished form on this
+// device (new visitor, or the last one was sent or cleared), Apply is locked again.
+if(!hasDraft){
+  termsAccepted = false;
+  termsAgree.checked = false;
+  try { localStorage.removeItem(TERMS_KEY); } catch(e) {}
+  updateTermsLock();
+}
 // New visitors read the terms first; someone in the middle of a form goes straight back to it
 setTab(hasDraft && termsAccepted ? 'apply' : 'terms', false);
 if(!signDateInput.value) signDateInput.value = todayISO();
