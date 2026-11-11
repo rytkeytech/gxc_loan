@@ -808,6 +808,57 @@
     body{font-family:'Segoe UI', Arial, sans-serif;}
   }
 
+
+  /* =========================================================
+     Two tabs: 1 Read terms, 2 Apply
+     ========================================================= */
+  .tabs{display:flex; gap:6px; max-width:560px; margin:0 auto; padding:0 0 10px;}
+  .tab{
+    flex:1; min-height:44px; border-radius:12px; border:1.5px solid rgba(255,255,255,.22);
+    background:transparent; color:#fff; font-family:inherit; font-size:.9rem; font-weight:700;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .tab .tab-num{
+    width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.16);
+    display:inline-flex; align-items:center; justify-content:center; font-size:.75rem;
+  }
+  .tab[aria-selected="true"]{background:#fff; color:var(--navy); border-color:#fff;}
+  .tab[aria-selected="true"] .tab-num{background:var(--gold); color:var(--navy);}
+  .tab:focus-visible{outline:2px solid var(--gold-soft); outline-offset:2px;}
+
+  body.tab-terms #loanForm, body.tab-terms .draft-bar, body.tab-terms .step-nav,
+  body.tab-terms #stepCounter, body.tab-terms .progress{display:none !important;}
+  body.tab-apply #termsPanel, body.tab-apply .terms-cta{display:none !important;}
+  body.reviewing .tabs, body.reviewing #termsPanel, body.reviewing .terms-cta{display:none !important;}
+
+  .terms-card{background:#fff; border-radius:20px; padding:20px 18px; margin-bottom:14px;
+    box-shadow:0 1px 2px rgba(11,31,58,.05), 0 10px 30px rgba(11,31,58,.06);}
+  .terms-card h2{margin:0 0 12px; font-size:1.05rem; font-weight:800; color:var(--navy); display:flex; align-items:center; gap:10px;}
+  .terms-card h2 .n{flex:0 0 26px; height:26px; border-radius:50%; background:var(--navy); color:#fff; font-size:.8rem;
+    display:inline-flex; align-items:center; justify-content:center;}
+  .terms-card p{margin:0 0 10px; font-size:.92rem; line-height:1.55; color:var(--ink);}
+  .terms-card p:last-child{margin-bottom:0;}
+  .terms-card ul{margin:0; padding-left:20px; font-size:.92rem; line-height:1.6; color:var(--ink);}
+  .terms-card li{margin-bottom:6px;}
+  .terms-card li:last-child{margin-bottom:0;}
+  .rate-table{width:100%; border-collapse:collapse; font-size:.9rem; font-variant-numeric:tabular-nums;}
+  .rate-table th{text-align:left; font-size:.72rem; letter-spacing:.6px; text-transform:uppercase; color:var(--text-2);
+    padding:0 8px 8px 0; border-bottom:1.5px solid var(--field-line);}
+  .rate-table td{padding:10px 8px 10px 0; border-bottom:1px solid var(--field-line); color:var(--ink);}
+  .rate-table tr:last-child td{border-bottom:none;}
+  .rate-table td:last-child, .rate-table th:last-child{text-align:right; padding-right:0;}
+  .rate-table td:nth-child(2){font-weight:800; color:var(--navy);}
+  .rate-note{font-size:.8rem !important; color:var(--text-2) !important; margin-top:10px !important;}
+  .terms-cta{
+    position:fixed; left:0; right:0; bottom:0; z-index:20;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.97); border-top:1px solid var(--field-line);
+    box-shadow:0 -6px 20px rgba(11,31,58,.06); display:flex; justify-content:center;
+  }
+  .terms-cta button{width:100%; max-width:528px; min-height:54px; border-radius:14px; border:none;
+    background:var(--gold); color:var(--navy); font-family:inherit; font-size:1rem; font-weight:800; cursor:pointer;}
+  @media print{ .tabs, #termsPanel, .terms-cta{display:none !important;} }
+
   /* =========================================================
      PDF fix: must stay LAST so the redesign styles above can't
      override it. A card with overflow:hidden + rounded corners
@@ -836,7 +887,7 @@
   }
 </style>
 </head>
-<body>
+<body class="tab-terms">
 
 <header class="appbar">
   <div class="appbar-row">
@@ -847,20 +898,85 @@
     </div>
     <span class="appbar-step" id="stepCounter">Step 1 of 6</span>
   </div>
+  <div class="tabs" role="tablist" aria-label="Loan application">
+    <button class="tab" id="tabTerms" type="button" role="tab" aria-selected="true" aria-controls="termsPanel"><span class="tab-num">1</span>Read terms</button>
+    <button class="tab" id="tabApply" type="button" role="tab" aria-selected="false" aria-controls="loanForm"><span class="tab-num">2</span>Apply</button>
+  </div>
   <div class="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
 </header>
 
 <div class="wrap">
 
+  <div id="termsPanel" role="tabpanel" aria-labelledby="tabTerms">
   <section class="hero" id="hero">
-    <p class="hero-kicker">Loan application</p>
+    <p class="hero-kicker">Loan terms</p>
     <h1 class="hero-title">Get GHS 100 – 5,000, repaid over 1 to 6 months.</h1>
     <div class="hero-points">
-      <span>About 5 minutes</span>
-      <span>Saved as you type</span>
+      <span>Collateral required</span>
+      <span>Apply in about 5 minutes</span>
       <span>Kept confidential</span>
     </div>
   </section>
+
+    <section class="terms-card">
+      <h2><span class="n">1</span>What you can borrow</h2>
+      <ul>
+        <li>Loans from <strong>GHS 100 to GHS 5,000</strong>.</li>
+        <li>Repay over <strong>1 to 6 months</strong>. You choose the period when you apply.</li>
+        <li>The loan and the interest are paid back in full by the due date.</li>
+      </ul>
+    </section>
+
+    <section class="terms-card">
+      <h2><span class="n">2</span>Interest</h2>
+      <table class="rate-table">
+        <thead><tr><th>Period</th><th>Interest</th><th>Borrow GHS 1,000, repay</th></tr></thead>
+        <tbody id="rateRows"></tbody>
+      </table>
+      <p class="rate-note">The form works out your exact repayment amount before you submit.</p>
+    </section>
+
+    <section class="terms-card">
+      <h2><span class="n">3</span>Collateral</h2>
+      <ul>
+        <li>Every loan needs an item as security, for example a phone, TV or motorbike.</li>
+        <li>The item must belong to you. It must not be stolen, pledged to someone else, or owned by another person.</li>
+      </ul>
+    </section>
+
+    <section class="terms-card">
+      <h2><span class="n">4</span>If you do not repay on time</h2>
+      <ul>
+        <li>You have a <strong id="graceDaysText">7-day</strong> grace period after the due date.</li>
+        <li>After that, GENXCHOICE QUICK LOAN may sell your collateral to recover what you owe.</li>
+        <li>A collateral recovery fee of <strong>15% of the sale price</strong> is taken first. The rest goes to your outstanding balance.</li>
+        <li>Any money left over is returned to you.</li>
+      </ul>
+    </section>
+
+    <section class="terms-card">
+      <h2><span class="n">5</span>What you need to apply</h2>
+      <ul>
+        <li>You must be <strong>18 years or older</strong>.</li>
+        <li>Your Ghana Card or Voter ID number.</li>
+        <li>A clear photo of yourself.</li>
+        <li>Your phone number, address and a next of kin.</li>
+        <li>Details of the item you are offering as collateral.</li>
+      </ul>
+    </section>
+
+    <section class="terms-card">
+      <h2><span class="n">6</span>Good to know</h2>
+      <ul>
+        <li>GENXCHOICE QUICK LOAN reviews every application. Applying does not guarantee a loan.</li>
+        <li>False information may lead to your application being rejected.</li>
+        <li>Your details are kept confidential and used only to assess your loan.</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="terms-cta"><button type="button" id="termsContinueBtn">I have read the terms. Apply now</button></div>
+
 
   <div class="draft-bar" id="draftBar">
     <span>We restored your unfinished application.</span>
@@ -1468,9 +1584,9 @@ form.addEventListener('submit', function(e){
   }
   setupSendButtons();
   document.getElementById('draftBar').classList.remove('show');
-  document.getElementById('hero').style.display = 'none';
   form.style.display = 'none';
   reviewScreen.style.display = 'block';
+  document.body.classList.add('reviewing');
   pdfShareArmed = false;
   preparePdf();
   document.getElementById('stepCounter').textContent = 'Review';
@@ -1493,6 +1609,8 @@ document.getElementById('editBtn').addEventListener('click', function(){
   pdfPromise = null; pdfBlob = null;
   form.style.display='block';
   reviewScreen.style.display='none';
+  document.body.classList.remove('reviewing');
+  setTab('apply', false);
   showStep(0);
 });
 
@@ -1508,7 +1626,6 @@ function showStep(i, scroll){
   stepIndex = Math.max(0, Math.min(i, steps.length - 1));
   const last = stepIndex === steps.length - 1;
   steps.forEach((s, k) => s.classList.toggle('active', k === stepIndex));
-  document.getElementById('hero').style.display = stepIndex === 0 ? '' : 'none';
   document.getElementById('stepCounter').textContent = 'Step ' + (stepIndex + 1) + ' of ' + steps.length;
   document.getElementById('progressFill').style.width = ((stepIndex + 1) / steps.length * 100) + '%';
   backBtn.style.display = stepIndex === 0 ? 'none' : '';
@@ -2443,13 +2560,42 @@ function getSignatureDataUrl(){
   return sigCanvas.toDataURL('image/png');
 }
 
+/* ---------- Tabs: 1 Read terms, 2 Apply ---------- */
+const TERMS_KEY = 'gxc_loan_terms_read_v1';
+function setTab(name, scroll){
+  const apply = name === 'apply';
+  document.body.classList.toggle('tab-apply', apply);
+  document.body.classList.toggle('tab-terms', !apply);
+  document.getElementById('tabApply').setAttribute('aria-selected', apply ? 'true' : 'false');
+  document.getElementById('tabTerms').setAttribute('aria-selected', apply ? 'false' : 'true');
+  if(apply) showStep(stepIndex, false);          // re-measures the signature pad if it is on screen
+  if(scroll !== false) window.scrollTo({top:0, behavior:'smooth'});
+}
+document.getElementById('tabTerms').addEventListener('click', () => setTab('terms'));
+document.getElementById('tabApply').addEventListener('click', () => setTab('apply'));
+document.getElementById('termsContinueBtn').addEventListener('click', () => {
+  try { localStorage.setItem(TERMS_KEY, '1'); } catch(e) {}
+  setTab('apply');
+});
+
+/* Interest table comes from the same rates the form uses */
+document.getElementById('rateRows').innerHTML = Object.keys(REPAYMENT_RATES).map(period => {
+  const rate = REPAYMENT_RATES[period];
+  return '<tr><td>' + period + '</td><td>' + Math.round(rate * 100) + '%</td><td>GHS ' + (1000 * (1 + rate)).toLocaleString('en-GH') + '</td></tr>';
+}).join('');
+document.getElementById('graceDaysText').textContent = CONFIG.graceDays + '-day';
+
 /* ---------- Start-up ---------- */
 let startStep = 0;
+let hasDraft = false;
 if(restoreDraft()){
+  hasDraft = true;
   document.getElementById('draftBar').classList.add('show');
   try { startStep = parseInt(localStorage.getItem(STEP_KEY) || '0', 10) || 0; } catch(e) {}
 }
 showStep(startStep, false);
+// New visitors read the terms first; someone in the middle of a form goes straight back to it
+setTab(hasDraft ? 'apply' : 'terms', false);
 if(!signDateInput.value) signDateInput.value = todayISO();
 updatePayoutFields();
 updateSigMethodUI();
