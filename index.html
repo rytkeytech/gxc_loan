@@ -857,6 +857,17 @@
   }
   .terms-cta button{width:100%; max-width:528px; min-height:54px; border-radius:14px; border:none;
     background:var(--gold); color:var(--navy); font-family:inherit; font-size:1rem; font-weight:800; cursor:pointer;}
+  .terms-official{border:1.5px solid var(--gold);}
+  .terms-text{text-align:left; background:var(--field); border:1.5px solid var(--field-line); border-radius:12px; padding:14px; font-size:.9rem !important; line-height:1.65 !important;}
+  .terms-agree{display:flex; align-items:flex-start; gap:10px; margin-top:14px; padding:14px; border-radius:12px;
+    background:var(--field); border:1.5px solid var(--field-line); font-size:.92rem; font-weight:700; line-height:1.45; color:var(--ink); cursor:pointer;}
+  .terms-agree input{flex:0 0 22px; width:22px !important; height:22px; margin:0; accent-color:var(--navy);}
+  .terms-agree.nudge{border-color:var(--danger); background:#FCEBEB;}
+  .terms-hint{margin:8px 0 0 !important; font-size:.85rem !important; font-weight:700; color:var(--danger) !important; min-height:1.2em;}
+  .terms-cta button:disabled{background:#E2DED3; color:#6b7280; cursor:not-allowed;}
+  .tab.locked{opacity:.6;}
+  .tab .tab-lock{display:none; width:14px; height:14px;}
+  .tab.locked .tab-lock{display:inline-block;}
   @media print{ .tabs, #termsPanel, .terms-cta{display:none !important;} }
 
   /* =========================================================
@@ -900,7 +911,7 @@
   </div>
   <div class="tabs" role="tablist" aria-label="Loan application">
     <button class="tab" id="tabTerms" type="button" role="tab" aria-selected="true" aria-controls="termsPanel"><span class="tab-num">1</span>Read terms</button>
-    <button class="tab" id="tabApply" type="button" role="tab" aria-selected="false" aria-controls="loanForm"><span class="tab-num">2</span>Apply</button>
+    <button class="tab" id="tabApply" type="button" role="tab" aria-selected="false" aria-controls="loanForm"><span class="tab-num">2</span>Apply<svg class="tab-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
   </div>
   <div class="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
 </header>
@@ -937,45 +948,28 @@
     </section>
 
     <section class="terms-card">
-      <h2><span class="n">3</span>Collateral</h2>
-      <ul>
-        <li>Every loan needs an item as security, for example a phone, TV or motorbike.</li>
-        <li>The item must belong to you. It must not be stolen, pledged to someone else, or owned by another person.</li>
-      </ul>
-    </section>
-
-    <section class="terms-card">
-      <h2><span class="n">4</span>If you do not repay on time</h2>
-      <ul>
-        <li>You have a <strong id="graceDaysText">7-day</strong> grace period after the due date.</li>
-        <li>After that, GENXCHOICE QUICK LOAN may sell your collateral to recover what you owe.</li>
-        <li>A collateral recovery fee of <strong>15% of the sale price</strong> is taken first. The rest goes to your outstanding balance.</li>
-        <li>Any money left over is returned to you.</li>
-      </ul>
-    </section>
-
-    <section class="terms-card">
-      <h2><span class="n">5</span>What you need to apply</h2>
+      <h2><span class="n">3</span>What you need to apply</h2>
       <ul>
         <li>You must be <strong>18 years or older</strong>.</li>
         <li>Your Ghana Card or Voter ID number.</li>
         <li>A clear photo of yourself.</li>
         <li>Your phone number, address and a next of kin.</li>
-        <li>Details of the item you are offering as collateral.</li>
+        <li>An item to offer as collateral, kept for a <strong id="graceDaysText">7-day</strong> grace period after the due date before any sale.</li>
       </ul>
     </section>
 
-    <section class="terms-card">
-      <h2><span class="n">6</span>Good to know</h2>
-      <ul>
-        <li>GENXCHOICE QUICK LOAN reviews every application. Applying does not guarantee a loan.</li>
-        <li>False information may lead to your application being rejected.</li>
-        <li>Your details are kept confidential and used only to assess your loan.</li>
-      </ul>
+    <section class="terms-card terms-official">
+      <h2><span class="n">4</span>The terms</h2>
+      <p class="terms-text" id="termsText"></p>
+      <label class="terms-agree" id="termsAgreeLabel">
+        <input type="checkbox" id="termsAgree">
+        <span>I have read and agree to these terms, including the sale of my collateral if I default.</span>
+      </label>
+      <p class="terms-hint" id="termsHint" role="status" aria-live="polite"></p>
     </section>
   </div>
 
-  <div class="terms-cta"><button type="button" id="termsContinueBtn">I have read the terms. Apply now</button></div>
+  <div class="terms-cta"><button type="button" id="termsContinueBtn" disabled>Agree to the terms to apply</button></div>
 
 
   <div class="draft-bar" id="draftBar">
@@ -2571,12 +2565,44 @@ function setTab(name, scroll){
   if(apply) showStep(stepIndex, false);          // re-measures the signature pad if it is on screen
   if(scroll !== false) window.scrollTo({top:0, behavior:'smooth'});
 }
-document.getElementById('tabTerms').addEventListener('click', () => setTab('terms'));
-document.getElementById('tabApply').addEventListener('click', () => setTab('apply'));
-document.getElementById('termsContinueBtn').addEventListener('click', () => {
+/* Apply stays locked until the terms are agreed to on this device */
+let termsAccepted = false;
+try { termsAccepted = localStorage.getItem(TERMS_KEY) === '1'; } catch(e) {}
+const termsAgree = document.getElementById('termsAgree');
+const termsContinueBtn = document.getElementById('termsContinueBtn');
+const tabApplyBtn = document.getElementById('tabApply');
+document.getElementById('termsText').textContent = DECLARATION_TEXT;
+
+function updateTermsLock(){
+  const ok = termsAccepted || termsAgree.checked;
+  termsContinueBtn.disabled = !ok;
+  termsContinueBtn.textContent = ok ? 'Continue to application' : 'Agree to the terms to apply';
+  tabApplyBtn.classList.toggle('locked', !termsAccepted);
+  tabApplyBtn.setAttribute('aria-disabled', termsAccepted ? 'false' : 'true');
+  if(ok){ document.getElementById('termsAgreeLabel').classList.remove('nudge'); document.getElementById('termsHint').textContent = ''; }
+}
+function acceptTerms(){
+  termsAccepted = true;
+  termsAgree.checked = true;
   try { localStorage.setItem(TERMS_KEY, '1'); } catch(e) {}
-  setTab('apply');
+  updateTermsLock();
+}
+function nudgeTerms(){
+  setTab('terms', false);
+  const label = document.getElementById('termsAgreeLabel');
+  label.classList.add('nudge');
+  document.getElementById('termsHint').textContent = 'Please read the terms and tick the box before you apply.';
+  label.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+termsAgree.addEventListener('change', function(){
+  if(!termsAgree.checked){ termsAccepted = false; try { localStorage.removeItem(TERMS_KEY); } catch(e) {} }
+  updateTermsLock();
 });
+document.getElementById('tabTerms').addEventListener('click', () => setTab('terms'));
+tabApplyBtn.addEventListener('click', () => { if(termsAccepted) setTab('apply'); else if(termsAgree.checked){ acceptTerms(); setTab('apply'); } else nudgeTerms(); });
+termsContinueBtn.addEventListener('click', () => { if(!termsAgree.checked && !termsAccepted) return nudgeTerms(); acceptTerms(); setTab('apply'); });
+termsAgree.checked = termsAccepted;
+updateTermsLock();
 
 /* Interest table comes from the same rates the form uses */
 document.getElementById('rateRows').innerHTML = Object.keys(REPAYMENT_RATES).map(period => {
@@ -2595,7 +2621,7 @@ if(restoreDraft()){
 }
 showStep(startStep, false);
 // New visitors read the terms first; someone in the middle of a form goes straight back to it
-setTab(hasDraft ? 'apply' : 'terms', false);
+setTab(hasDraft && termsAccepted ? 'apply' : 'terms', false);
 if(!signDateInput.value) signDateInput.value = todayISO();
 updatePayoutFields();
 updateSigMethodUI();
