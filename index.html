@@ -1924,6 +1924,70 @@ async function buildApplicationPdf(){
   });
   y += sh + 5;
 
+  /* Company seal, unique to this application: carries its number and date */
+  function drawSeal(cx, cy, r){
+    const INKC = [36, 58, 150], tilt = -7 * Math.PI / 180;        // slight tilt, like a hand stamp
+    const rad = d => d * Math.PI / 180;
+    doc.saveGraphicsState();
+    try { doc.setGState(new doc.GState({ opacity: 0.86, 'stroke-opacity': 0.86 })); } catch(e) {}
+    doc.setDrawColor(...INKC); doc.setTextColor(...INKC);
+    doc.setLineWidth(0.75); doc.circle(cx, cy, r);
+    doc.setLineWidth(0.25); doc.circle(cx, cy, r - 1.1);
+    doc.setLineWidth(0.3);  doc.circle(cx, cy, r - 4.6);
+
+    // Text round the ring. a = degrees clockwise from the top.
+    function arc(text, size, centreDeg, bottom){
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(size);
+      const gap = 0.32, widths = text.split('').map(ch => doc.getTextWidth(ch) + gap);
+      const capH = size * 0.3528 * 0.72;
+      const R = bottom ? r - 1.75 : r - 1.75 - capH;               // baseline radius
+      const total = widths.reduce((x, w) => x + w, 0);
+      let along = -total / 2;
+      text.split('').forEach((ch, i) => {
+        const w = widths[i], mid = along + w / 2;
+        const a = rad(centreDeg) + (bottom ? -mid / R : mid / R) + tilt;
+        const half = (w - gap) / 2;
+        if(!bottom){
+          doc.text(ch, cx + R * Math.sin(a) - half * Math.cos(a), cy - R * Math.cos(a) - half * Math.sin(a), { angle: -a * 180 / Math.PI });
+        } else {
+          doc.text(ch, cx + R * Math.sin(a) + half * Math.cos(a), cy - R * Math.cos(a) + half * Math.sin(a), { angle: -(a * 180 / Math.PI - 180) });
+        }
+        along += w;
+      });
+    }
+    arc('GENXCHOICE QUICK LOAN', 5.2, 0, false);
+    arc('OFFICIAL SEAL', 5.2, 180, true);
+    // Stars between the two phrases
+    [111, 249].forEach(d => {
+      const a = rad(d) + tilt, R = r - 2.85, px = cx + R * Math.sin(a), py = cy - R * Math.cos(a), pts = [];
+      for(let i = 0; i < 10; i++){ const q = a + i * Math.PI / 5, rr = i % 2 ? 0.36 : 0.9; pts.push([px + rr * Math.sin(q), py - rr * Math.cos(q)]); }
+      doc.setFillColor(...INKC);
+      doc.lines(pts.slice(1).map((pt, i) => [pt[0] - pts[i][0], pt[1] - pts[i][1]]), pts[0][0], pts[0][1], [1, 1], 'F', true);
+    });
+
+    // Centre: date band with the application number
+    const t = -tilt, ux = Math.cos(t), uy = -Math.sin(t), vx = Math.sin(t), vy = Math.cos(t);
+    function line(text, style, size, d){
+      doc.setFont('helvetica', style); doc.setFontSize(size);
+      const w = doc.getTextWidth(text);
+      doc.text(text, cx + d * vx - (w / 2) * ux, cy + d * vy - (w / 2) * uy, { angle: t * 180 / Math.PI });
+    }
+    function rule(d, halfW){
+      doc.setLineWidth(0.3);
+      doc.line(cx + d * vx - halfW * ux, cy + d * vy - halfW * uy, cx + d * vx + halfW * ux, cy + d * vy + halfW * uy);
+    }
+    const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const sd = new Date((val('signDate') || todayStr) + 'T00:00:00');
+    const stampDate = String(sd.getDate()).padStart(2, '0') + ' ' + MONTHS[sd.getMonth()] + ' ' + sd.getFullYear();
+    const refNo = String(currentRef || '').replace(/^GXC-/, '');
+    line('LOANS OFFICE', 'bold', 4.6, -3.6);
+    rule(-2.5, 7.4);
+    line(stampDate, 'bold', 7, 0.8);
+    rule(2.2, 7.4);
+    line('No. ' + refNo, 'bold', 4.4, 4.6);
+    doc.restoreGraphicsState();
+  }
+
   /* Official use */
   ensure(58);
   const oy = y;
@@ -1950,7 +2014,8 @@ async function buildApplicationPdf(){
   // Stamp box
   const stx = M + CW - 44, sty = oy + 9;
   doc.setDrawColor(...GRID); doc.setLineWidth(0.25); doc.rect(stx, sty, 40, 32);
-  font('normal', 6.6, MUTED); doc.text('OFFICIAL STAMP', stx + 20, sty + 17, { align:'center' });
+  font('normal', 5.6, MUTED); doc.text('OFFICIAL STAMP', stx + 20, sty + 30.6, { align:'center' });
+  drawSeal(stx + 20, sty + 14.6, 13.4);
   font('italic', 6.4, MUTED);
   doc.text(doc.splitTextToSize('Pre-filled values assume disbursement on the application date. Cross out and correct by hand if they differ.', CW - 6), M + 3, oy + 49.5);
   y = oy + 58;
